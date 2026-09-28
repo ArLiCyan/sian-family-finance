@@ -16,7 +16,7 @@ import StoreReportsTab from './tabs/StoreReportsTab'
 
 const TABS = [
   { value: 'dashboard', label: 'Dashboard' },
-  { value: 'inventory', label: 'Inventory Studio' },
+  { value: 'inventory', label: 'Inventory' },
   { value: 'capital', label: 'Business Capital' },
   { value: 'repayments', label: 'Repayments' },
   { value: 'reports', label: 'Reports' },

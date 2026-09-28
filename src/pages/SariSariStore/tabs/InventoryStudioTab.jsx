@@ -7,7 +7,7 @@ import Button from '../../../components/ui/Button'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
 import CreateInventorySystemWizard from '../inventory/CreateInventorySystemWizard'
-import InventorySystemDetail from '../inventory/InventorySystemDetail'
+import InventoryWorkbookView from '../inventory/InventoryWorkbookView'
 
 export default function InventoryStudioTab({ family, canManage }) {
   const [systems, setSystems] = useState([])
@@ -40,17 +40,28 @@ export default function InventoryStudioTab({ family, canManage }) {
 
   useRealtimeRefresh(`inventory-systems-${family.id}`, [{ table: 'inventory_systems', filter: `family_id=eq.${family.id}` }], load)
 
+  // With exactly one inventory system — the normal case — skip the picker
+  // entirely and go straight to it, so "Inventory" opens directly into the
+  // report workbook rather than an extra selection screen.
+  useEffect(() => {
+    if (!loading && systems.length === 1 && selectedId === null) {
+      setSelectedId(systems[0].id)
+    }
+  }, [loading, systems, selectedId])
+
   if (selectedId) {
     const system = systems.find((s) => s.id === selectedId)
     return (
       <div>
-        <button
-          onClick={() => setSelectedId(null)}
-          className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          <ChevronLeft className="h-4 w-4" /> My Inventory Systems
-        </button>
-        {system && <InventorySystemDetail system={system} canManage={canManage} onArchived={() => { setSelectedId(null); load() }} />}
+        {systems.length > 1 && (
+          <button
+            onClick={() => setSelectedId(null)}
+            className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            <ChevronLeft className="h-4 w-4" /> My Inventory Systems
+          </button>
+        )}
+        {system && <InventoryWorkbookView system={system} canManage={canManage} onArchived={() => { setSelectedId(null); load() }} />}
       </div>
     )
   }

@@ -3,13 +3,15 @@ import { Pencil } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import Modal from '../../../components/ui/Modal'
 import Button from '../../../components/ui/Button'
-import Badge from '../../../components/ui/Badge'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
-import CurrencyDisplay from '../../../components/financial/CurrencyDisplay'
 import { formatDate } from '../../../lib/format'
-import CreateReportModal from './CreateReportModal'
+import InventoryWorksheet from './InventoryWorksheet'
 
+// Estimated Revenue deliberately isn't shown here — per explicit direction,
+// it stays out of the everyday inventory workflow and lives only in the
+// Reports/export tab, since inventory data alone doesn't reliably tell you
+// actual sales revenue.
 export default function ReportDetailModal({ reportId, system, canManage, onClose, onChanged }) {
   const [report, setReport] = useState(null)
   const [rows, setRows] = useState([])
@@ -51,9 +53,6 @@ export default function ReportDetailModal({ reportId, system, canManage, onClose
     onChanged?.()
   }
 
-  const hasAnyRevenue = rows.some((r) => r.estimated_revenue != null)
-  const totalRevenue = rows.reduce((sum, r) => sum + (Number(r.estimated_revenue) || 0), 0)
-
   return (
     <>
       <Modal open={!!reportId && !editing} onClose={onClose} title={report ? formatDate(report.report_date) : 'Report'} size="xl">
@@ -71,50 +70,38 @@ export default function ReportDetailModal({ reportId, system, canManage, onClose
             {rows.length === 0 ? (
               <EmptyState title="No entries" message="This report has no recorded values." />
             ) : (
-              <>
-                <div className="max-h-[60vh] overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-white dark:bg-sage-900">
-                      <tr className="border-b border-gray-200 dark:border-sage-800 text-left text-xs uppercase text-gray-400">
-                        <th className="py-2 pr-3">Product</th>
-                        <th className="py-2 pr-3 text-right">Purchased</th>
-                        <th className="py-2 pr-3 text-right">Remaining Stocks</th>
-                        <th className="py-2 pr-3 text-right">Previous Stocks</th>
-                        <th className="py-2 pr-3 text-right">Est. Sold</th>
-                        <th className="py-2 pr-3 text-right">Est. Revenue</th>
-                        <th className="py-2 pl-3">Status</th>
+              <div className="max-h-[60vh] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white dark:bg-sage-900">
+                    <tr className="border-b border-gray-200 dark:border-sage-800 text-left text-xs uppercase text-gray-400">
+                      <th className="py-2 pr-3">Item</th>
+                      <th className="py-2 pr-3 text-right">Added Stock</th>
+                      <th className="py-2 pr-3 text-right">Remaining Stock</th>
+                      <th className="py-2 pr-3 text-right">Previous Remaining</th>
+                      <th className="py-2 pr-3 text-right">Estimated Sold</th>
+                      <th className="py-2 pl-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-sage-800">
+                    {rows.map((r) => (
+                      <tr key={r.report_item_id}>
+                        <td className="py-1.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{r.product_name}</td>
+                        <td className="py-1.5 pr-3 text-right">{r.quantity_purchased ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-right">{r.ending_inventory ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-right text-gray-500">{r.previous_ending_inventory ?? '—'}</td>
+                        <td className="py-1.5 pr-3 text-right text-gray-500">{r.estimated_units_sold ?? '—'}</td>
+                        <td className="py-1.5 pl-3">
+                          {r.is_low_stock ? (
+                            <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Low</span>
+                          ) : (
+                            <span className="text-sm text-gray-400">OK</span>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-sage-800">
-                      {rows.map((r) => (
-                        <tr key={r.report_item_id}>
-                          <td className="py-1.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{r.product_name}</td>
-                          <td className="py-1.5 pr-3 text-right">{r.quantity_purchased ?? '—'}</td>
-                          <td className="py-1.5 pr-3 text-right">{r.ending_inventory ?? '—'}</td>
-                          <td className="py-1.5 pr-3 text-right text-gray-500">{r.previous_ending_inventory ?? '—'}</td>
-                          <td className="py-1.5 pr-3 text-right text-gray-500">{r.estimated_units_sold ?? '—'}</td>
-                          <td className="py-1.5 pr-3 text-right text-gray-500">
-                            {r.estimated_revenue != null ? <CurrencyDisplay amount={r.estimated_revenue} /> : '—'}
-                          </td>
-                          <td className="py-1.5 pl-3">
-                            {r.is_low_stock && <Badge color="amber">Low Stock</Badge>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {hasAnyRevenue ? (
-                  <div className="mt-3 flex items-center justify-between rounded-lg bg-sage-50 dark:bg-sage-900/40 px-3 py-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Estimated Revenue</span>
-                    <CurrencyDisplay amount={totalRevenue} className="text-sm font-semibold text-sage-700 dark:text-sage-300" />
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-gray-400">
-                    Set a Price on your products (Products tab) to see estimated revenue here.
-                  </p>
-                )}
-              </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             {report?.notes && <p className="mt-3 text-xs text-gray-400">Notes: {report.notes}</p>}
           </>
@@ -122,7 +109,7 @@ export default function ReportDetailModal({ reportId, system, canManage, onClose
       </Modal>
 
       {editing && system && (
-        <CreateReportModal open={editing} onClose={() => setEditing(false)} system={system} existingReport={report} onSaved={afterEdit} />
+        <InventoryWorksheet open={editing} onClose={() => setEditing(false)} system={system} existingReport={report} onSaved={afterEdit} />
       )}
     </>
   )
