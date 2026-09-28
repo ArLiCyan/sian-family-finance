@@ -60,7 +60,7 @@ export default function StoreReportsTab({ family }) {
     ])
   }
 
-  const inventoryHeaders = ['System', 'Product', 'Report Date', 'Purchased', 'Ending Inventory', 'Previous Ending', 'Estimated Sold', 'Low Stock']
+  const inventoryHeaders = ['System', 'Item', 'Report Date', 'Added Stock', 'Remaining Stock', 'Previous Remaining', 'Estimated Sold', 'Low Stock']
   const capitalHeaders = ['Funding', 'Purpose', 'Repayment Date', 'Amount', 'Notes']
 
   async function withLoading(fn) {

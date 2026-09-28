@@ -134,19 +134,19 @@ export default function CreateInventorySystemWizard({ open, onClose, family, onC
             These calculations happen automatically based on the field roles you set — nothing to configure here.
           </p>
           <div className={`rounded-lg border p-3 text-sm ${hasEndingInventory ? 'border-sage-300 bg-sage-50 dark:border-sage-700 dark:bg-sage-900/40' : 'border-gray-200 dark:border-sage-800'}`}>
-            <p className="font-medium text-gray-900 dark:text-gray-100">Previous Value & Low Stock Detection</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100">Previous Remaining & Low Stock Detection</p>
             <p className="text-gray-500 dark:text-gray-400">
               {hasEndingInventory
-                ? 'Enabled — each report will automatically show the previous ending inventory, and flag products at or below their low-stock threshold.'
-                : 'Mark a field with the "Ending Inventory" role to enable this.'}
+                ? 'Enabled — each report will automatically show the previous remaining stock, and flag items at or below their low-stock threshold.'
+                : 'Mark a field with the "Remaining Stock" role to enable this.'}
             </p>
           </div>
           <div className={`rounded-lg border p-3 text-sm ${hasQuantityPurchased && hasEndingInventory ? 'border-sage-300 bg-sage-50 dark:border-sage-700 dark:bg-sage-900/40' : 'border-gray-200 dark:border-sage-800'}`}>
-            <p className="font-medium text-gray-900 dark:text-gray-100">Estimated Units Sold</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100">Estimated Sold</p>
             <p className="text-gray-500 dark:text-gray-400">
               {hasQuantityPurchased && hasEndingInventory
-                ? 'Enabled — Previous Ending + Quantity Purchased − Current Ending, computed automatically for each report.'
-                : 'Mark one field "Quantity Purchased" and another "Ending Inventory" to enable this.'}
+                ? 'Enabled — Previous Remaining + Added Stock − Current Remaining, computed automatically for each report.'
+                : 'Mark one field "Added Stock" and another "Remaining Stock" to enable this.'}
             </p>
           </div>
         </div>

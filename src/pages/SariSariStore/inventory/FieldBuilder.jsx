@@ -61,7 +61,7 @@ export default function FieldBuilder({ fields, onChange }) {
               <Input value={f.field_name} onChange={(e) => update(i, { field_name: e.target.value })} placeholder="e.g. Added Stock" />
             </Field>
             <Field label="Display Label">
-              <Input value={f.display_label} onChange={(e) => update(i, { display_label: e.target.value })} placeholder="e.g. Purchases / Dugang na Stock" />
+              <Input value={f.display_label} onChange={(e) => update(i, { display_label: e.target.value })} placeholder="e.g. Added Stock / Dugang na Stock" />
             </Field>
           </div>
 
@@ -91,11 +91,11 @@ export default function FieldBuilder({ fields, onChange }) {
                   ))}
                 </Select>
               </Field>
-              <Field label="Role in calculations" hint="Enables automatic Previous Value / Estimated Units Sold.">
+              <Field label="Role in calculations" hint="Enables automatic Previous Remaining / Estimated Sold.">
                 <Select value={f.field_role} onChange={(e) => update(i, { field_role: e.target.value })}>
                   <option value="">None</option>
-                  <option value="quantity_purchased">Quantity Purchased</option>
-                  <option value="ending_inventory">Ending Inventory</option>
+                  <option value="quantity_purchased">Added Stock</option>
+                  <option value="ending_inventory">Remaining Stock</option>
                 </Select>
               </Field>
             </div>
