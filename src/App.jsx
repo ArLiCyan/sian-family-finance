@@ -20,6 +20,7 @@ import ProjectDetail from './pages/Projects/ProjectDetail'
 import Goals from './pages/Goals/Goals'
 import Debts from './pages/Debts/Debts'
 import Budgets from './pages/Budgets/Budgets'
+import SariSariStore from './pages/SariSariStore/SariSariStore'
 import Reports from './pages/Reports/Reports'
 import Members from './pages/FamilyMembers/Members'
 import Announcements from './pages/Announcements/Announcements'
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="/goals" element={<Goals />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="/budgets" element={<Budgets />} />
+              <Route path="/sari-sari-store" element={<SariSariStore />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/members" element={<Members />} />
               <Route path="/announcements" element={<Announcements />} />
