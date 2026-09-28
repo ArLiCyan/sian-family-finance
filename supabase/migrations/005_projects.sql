@@ -109,6 +109,7 @@ create table project_expenses (
   vendor text,
   description text not null,
   receipt_path text,
+  transaction_id uuid references transactions(id),
   created_by uuid not null references profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

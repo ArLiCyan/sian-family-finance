@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
-import { getCategories } from '../../../lib/api'
+import { getCategories, getAccountsWithBalances } from '../../../lib/api'
 import { useRealtimeRefresh } from '../../../lib/useRealtimeRefresh'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -17,9 +17,10 @@ export default function ProjectExpensesTab({ project, canManage, onChange }) {
   const { profile } = useAuth()
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
+  const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), vendor: '', description: '', category_id: '' })
+  const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), vendor: '', description: '', category_id: '', account_id: '' })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -38,7 +39,8 @@ export default function ProjectExpensesTab({ project, canManage, onChange }) {
   useEffect(() => {
     load()
     getCategories('expense').then(setCategories)
-  }, [load])
+    getAccountsWithBalances({ scope: 'family', familyId: project.family_id }).then(({ accounts: a }) => setAccounts(a))
+  }, [load, project.family_id])
 
   useRealtimeRefresh(`project-expenses-${project.id}`, [{ table: 'project_expenses', filter: `project_id=eq.${project.id}` }], load)
 
@@ -50,21 +52,54 @@ export default function ProjectExpensesTab({ project, canManage, onChange }) {
     }
     setSaving(true)
     setError('')
-    const { error: err } = await supabase.from('project_expenses').insert({
-      project_id: project.id,
-      amount: Number(form.amount),
-      date: form.date,
-      vendor: form.vendor || null,
-      description: form.description.trim(),
-      category_id: form.category_id || null,
-      created_by: profile.id,
-    })
-    setSaving(false)
+
+    const description = form.description.trim()
+    const { data: expense, error: err } = await supabase
+      .from('project_expenses')
+      .insert({
+        project_id: project.id,
+        amount: Number(form.amount),
+        date: form.date,
+        vendor: form.vendor || null,
+        description,
+        category_id: form.category_id || null,
+        created_by: profile.id,
+      })
+      .select()
+      .single()
+
     if (err) {
+      setSaving(false)
       setError(err.message)
       return
     }
-    setForm({ amount: '', date: new Date().toISOString().slice(0, 10), vendor: '', description: '', category_id: '' })
+
+    // Mirror the expense into the family transactions ledger so it counts
+    // toward the Dashboard's Expenses total, chart, and Recent Transactions —
+    // project expenses previously never touched that ledger at all.
+    const { data: txn } = await supabase
+      .from('transactions')
+      .insert({
+        scope: 'family',
+        family_id: project.family_id,
+        type: 'expense',
+        amount: Number(form.amount),
+        date: form.date,
+        account_id: form.account_id || null,
+        category_id: form.category_id || null,
+        project_id: project.id,
+        description: `${description} — ${project.name}`,
+        merchant: form.vendor || null,
+        created_by: profile.id,
+      })
+      .select()
+      .single()
+    if (txn) {
+      await supabase.from('project_expenses').update({ transaction_id: txn.id }).eq('id', expense.id)
+    }
+
+    setSaving(false)
+    setForm({ amount: '', date: new Date().toISOString().slice(0, 10), vendor: '', description: '', category_id: '', account_id: '' })
     setOpen(false)
     load()
     onChange?.()
@@ -129,6 +164,14 @@ export default function ProjectExpensesTab({ project, canManage, onChange }) {
               <option value="">Uncategorized</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Paid From Account (optional)" hint="If set, this amount will be deducted from that family account's balance.">
+            <Select value={form.account_id} onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))}>
+              <option value="">Don't track source account</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </Select>
           </Field>

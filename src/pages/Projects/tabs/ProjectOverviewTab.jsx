@@ -10,12 +10,19 @@ import EmptyState from '../../../components/ui/EmptyState'
 export default function ProjectOverviewTab({ project, members }) {
   const [statuses, setStatuses] = useState([])
 
-  const load = useCallback(() => {
-    supabase
-      .from('project_member_contribution_status')
-      .select('*, profiles(display_name)')
-      .eq('project_id', project.id)
-      .then(({ data }) => setStatuses(data ?? []))
+  const load = useCallback(async () => {
+    // project_member_contribution_status is a UNION-based view, which
+    // Postgres can't give a foreign key — so PostgREST's automatic
+    // "profiles(display_name)" embed silently returns nothing. Names are
+    // fetched separately instead.
+    const { data: rows } = await supabase.from('project_member_contribution_status').select('*').eq('project_id', project.id)
+    const ids = [...new Set((rows ?? []).map((r) => r.profile_id))]
+    let names = {}
+    if (ids.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', ids)
+      names = Object.fromEntries((profs ?? []).map((p) => [p.id, p.display_name]))
+    }
+    setStatuses((rows ?? []).map((r) => ({ ...r, display_name: names[r.profile_id] })))
   }, [project.id])
 
   useEffect(() => {
@@ -53,7 +60,7 @@ export default function ProjectOverviewTab({ project, members }) {
             {statuses.map((s) => (
               <div key={s.profile_id}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">{s.profiles?.display_name}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{s.display_name}</span>
                   <span className="text-gray-500">
                     {s.expected_amount != null ? (
                       <>
