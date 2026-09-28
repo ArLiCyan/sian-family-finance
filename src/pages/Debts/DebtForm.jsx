@@ -16,6 +16,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
     original_amount: '',
     due_date: '',
     installment_amount: '',
+    due_day_of_month: '',
     notes: '',
   })
   const [error, setError] = useState('')
@@ -31,9 +32,18 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
               original_amount: initial.original_amount,
               due_date: initial.due_date ?? '',
               installment_amount: initial.installment_amount ?? '',
+              due_day_of_month: initial.due_day_of_month ?? '',
               notes: initial.notes ?? '',
             }
-          : { direction: 'borrowed', counterparty_name: '', original_amount: '', due_date: '', installment_amount: '', notes: '' }
+          : {
+              direction: 'borrowed',
+              counterparty_name: '',
+              original_amount: '',
+              due_date: '',
+              installment_amount: '',
+              due_day_of_month: '',
+              notes: '',
+            }
       )
       setError('')
     }
@@ -49,6 +59,10 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       setError('Counterparty and a positive amount are required.')
       return
     }
+    if (form.due_day_of_month && (Number(form.due_day_of_month) < 1 || Number(form.due_day_of_month) > 31)) {
+      setError('Monthly due day must be between 1 and 31.')
+      return
+    }
     setSaving(true)
     setError('')
 
@@ -56,6 +70,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       counterparty_name: form.counterparty_name.trim(),
       due_date: form.due_date || null,
       installment_amount: form.installment_amount ? Number(form.installment_amount) : null,
+      due_day_of_month: form.due_day_of_month ? Number(form.due_day_of_month) : null,
       notes: form.notes || null,
     }
 
@@ -110,6 +125,20 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
           hint="Optional. Set this to get an exact months-remaining countdown. If left blank, it's estimated from actual payment history instead."
         >
           <Input type="number" min="0.01" step="0.01" value={form.installment_amount} onChange={(e) => update('installment_amount', e.target.value)} />
+        </Field>
+        <Field
+          label="Monthly Due Day"
+          hint="Optional. E.g. 5 for 'every 5th of the month', like a Shopee or credit card bill. Each installment will be marked overdue once its month's due day passes without a matching payment. Leave blank to space installments a month apart from the start date instead."
+        >
+          <Input
+            type="number"
+            min="1"
+            max="31"
+            step="1"
+            placeholder="e.g. 5"
+            value={form.due_day_of_month}
+            onChange={(e) => update('due_day_of_month', e.target.value)}
+          />
         </Field>
         <Field label="Notes">
           <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} />
