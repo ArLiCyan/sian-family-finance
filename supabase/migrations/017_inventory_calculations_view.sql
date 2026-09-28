@@ -32,7 +32,7 @@ select
     false
   ) as is_low_stock
 from inventory_report_items ri
-join inventory_reports r on r.id = ri.report_id
+join inventory_reports r on r.id = ri.report_id and r.deleted_at is null
 join inventory_products p on p.id = ri.product_id
 left join inventory_fields qf on qf.inventory_system_id = r.inventory_system_id and qf.field_role = 'quantity_purchased' and qf.archived_at is null
 left join inventory_fields ef on ef.inventory_system_id = r.inventory_system_id and ef.field_role = 'ending_inventory' and ef.archived_at is null
@@ -43,6 +43,7 @@ left join lateral (
   where ri2.product_id = ri.product_id
     and r2.inventory_system_id = r.inventory_system_id
     and r2.report_date < r.report_date
+    and r2.deleted_at is null
   order by r2.report_date desc
   limit 1
 ) prev on true;
