@@ -1623,7 +1623,7 @@ alter table announcements enable row level security;
 create policy announcements_select on announcements for select
   using (is_family_member(family_id));
 create policy announcements_insert on announcements for insert
-  with check (is_family_admin(family_id) and created_by = current_profile_id());
+  with check (is_family_member(family_id) and created_by = current_profile_id());
 create policy announcements_update on announcements for update
   using (is_family_admin(family_id)) with check (is_family_admin(family_id));
 

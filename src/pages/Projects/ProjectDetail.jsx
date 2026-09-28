@@ -5,9 +5,11 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
+import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
 import LoadingState from '../../components/ui/LoadingState'
 import Card from '../../components/ui/Card'
 import Tabs from '../../components/ui/Tabs'
+import ExportMenu from '../../components/ui/ExportMenu'
 import { StatusBadge, projectStatusColor } from '../../components/ui/Badge'
 import ProgressBar from '../../components/financial/ProgressBar'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
@@ -71,6 +73,58 @@ export default function ProjectDetail() {
     load()
   }
 
+  const exportHeaders = ['Type', 'Date', 'Description', 'Category / Method', 'Status', 'Amount']
+
+  async function buildExportRows() {
+    const [{ data: contributions }, { data: expenses }] = await Promise.all([
+      supabase
+        .from('project_contributions')
+        .select('*, profiles!project_contributions_profile_id_fkey(display_name)')
+        .eq('project_id', id)
+        .order('date', { ascending: false }),
+      supabase.from('project_expenses').select('*, categories(name)').eq('project_id', id).is('deleted_at', null).order('date', { ascending: false }),
+    ])
+    const contribRows = (contributions ?? []).map((c) => [
+      'Contribution',
+      c.date,
+      `${c.profiles?.display_name ?? 'Unknown'}'s contribution`,
+      c.payment_method || '',
+      c.status,
+      Number(c.confirmed_amount ?? c.amount).toFixed(2),
+    ])
+    const expenseRows = (expenses ?? []).map((e) => [
+      'Expense',
+      e.date,
+      e.description,
+      e.categories?.name ?? '',
+      '',
+      (-Number(e.amount)).toFixed(2),
+    ])
+    return [...contribRows, ...expenseRows].sort((a, b) => (a[1] < b[1] ? 1 : -1))
+  }
+
+  const exportSummary = () => [
+    `Proposed Budget: ₱${Number(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    `Total Contributions: ₱${Number(summary?.confirmed_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    `Total Spent: ₱${Number(summary?.expense_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+  ]
+
+  async function exportCsv() {
+    exportToCsv(`${project.name}-report.csv`, exportHeaders, await buildExportRows())
+  }
+  async function exportXls() {
+    exportToXls(`${project.name}-report.xls`, exportHeaders, await buildExportRows(), project.name)
+  }
+  async function exportPdf() {
+    exportToPdf(`${project.name}-report.pdf`, {
+      title: `${project.name} — Project Report`,
+      subtitle: PROJECT_TYPES[project.project_type],
+      headers: exportHeaders,
+      rows: await buildExportRows(),
+      summary: exportSummary(),
+    })
+  }
+
   if (loading || !project) return <LoadingState label="Loading project…" />
 
   const tabs = [
@@ -98,15 +152,18 @@ export default function ProjectDetail() {
             <p className="text-sm text-gray-500">{PROJECT_TYPES[project.project_type]}</p>
             {project.description && <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 max-w-xl">{project.description}</p>}
           </div>
-          {canManage && (
-            <Select value={project.status} onChange={(e) => updateStatus(e.target.value)} className="w-40">
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s.replace('_', ' ')}
-                </option>
-              ))}
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            <ExportMenu onCsv={exportCsv} onXls={exportXls} onPdf={exportPdf} />
+            {canManage && (
+              <Select value={project.status} onChange={(e) => updateStatus(e.target.value)} className="w-40">
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s.replace('_', ' ')}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">

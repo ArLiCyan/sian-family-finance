@@ -12,11 +12,10 @@ import EmptyState from '../../components/ui/EmptyState'
 import { formatDateTime } from '../../lib/format'
 
 export default function Announcements() {
-  const { profile, family, role } = useAuth()
+  const { family } = useAuth()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
-  const canPost = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!family) return
@@ -41,13 +40,13 @@ export default function Announcements() {
       <PageHeader
         title="Family Announcements"
         subtitle="Important updates and reminders for the family"
-        action={canPost && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New Announcement</Button>}
+        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New Announcement</Button>}
       />
 
       {loading ? (
         <LoadingState />
       ) : items.length === 0 ? (
-        <EmptyState icon={Megaphone} title="No announcements yet" message="Family admins can post financial announcements and reminders here." />
+        <EmptyState icon={Megaphone} title="No announcements yet" message="Any family member can post announcements and reminders here." />
       ) : (
         <div className="space-y-3">
           {items.map((a) => (

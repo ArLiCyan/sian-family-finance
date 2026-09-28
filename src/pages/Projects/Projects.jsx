@@ -4,9 +4,11 @@ import { Plus, FolderKanban } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
+import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ExportMenu from '../../components/ui/ExportMenu'
 import LoadingState from '../../components/ui/LoadingState'
 import EmptyState from '../../components/ui/EmptyState'
 import { StatusBadge, projectStatusColor } from '../../components/ui/Badge'
@@ -54,15 +56,48 @@ export default function Projects() {
     load
   )
 
+  const exportHeaders = ['Project', 'Type', 'Status', 'Proposed Budget', 'Total Contributions', 'Total Spent', 'Funding %', 'Spent %']
+  function exportRows() {
+    return projects.map((p) => {
+      const s = summaries[p.id]
+      return [
+        p.name,
+        PROJECT_TYPES[p.project_type],
+        p.status,
+        Number(p.budget).toFixed(2),
+        Number(s?.confirmed_total ?? 0).toFixed(2),
+        Number(s?.expense_total ?? 0).toFixed(2),
+        (s?.funding_percentage ?? 0).toFixed(1),
+        (s?.spending_percentage ?? 0).toFixed(1),
+      ]
+    })
+  }
+  function exportCsv() {
+    exportToCsv('sian-family-projects.csv', exportHeaders, exportRows())
+  }
+  function exportXls() {
+    exportToXls('sian-family-projects.xls', exportHeaders, exportRows(), 'Projects')
+  }
+  function exportPdf() {
+    exportToPdf('sian-family-projects.pdf', {
+      title: 'SIAN Family Finance — Projects',
+      headers: exportHeaders,
+      rows: exportRows(),
+    })
+  }
+
   return (
     <div>
       <PageHeader
         title="Family Projects"
         subtitle="Shared savings goals like construction, vehicles, and events"
         action={
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" /> New Project
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportMenu onCsv={exportCsv} onXls={exportXls} onPdf={exportPdf} disabled={projects.length === 0} />
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> New Project
+            </Button>
+          </div>
         }
       />
 

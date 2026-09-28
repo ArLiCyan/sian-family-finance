@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Download } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
 import { getCategories, TRANSACTION_TYPE_LABELS } from '../../lib/api'
 import { getPresetRange, rangePresets } from '../../lib/dateRanges'
+import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
-import Button from '../../components/ui/Button'
+import ExportMenu from '../../components/ui/ExportMenu'
 import { Select, Input } from '../../components/ui/FormField'
 import LoadingState from '../../components/ui/LoadingState'
 import EmptyState from '../../components/ui/EmptyState'
@@ -57,24 +57,37 @@ export default function Reports() {
   const income = rows.filter((r) => r.type === 'income').reduce((s, r) => s + Number(r.amount), 0)
   const expenses = rows.filter((r) => r.type === 'expense').reduce((s, r) => s + Number(r.amount), 0)
 
-  function exportCsv() {
-    const header = ['Date', 'Type', 'Category', 'Description', 'Amount', 'Recorded By']
-    const lines = rows.map((r) => [
+  const reportHeaders = ['Date', 'Type', 'Category', 'Description', 'Amount', 'Recorded By']
+  function reportRows() {
+    return rows.map((r) => [
       r.date,
       TRANSACTION_TYPE_LABELS[r.type],
       r.categories?.name ?? '',
-      (r.description ?? '').replace(/,/g, ';'),
-      r.amount,
+      r.description ?? '',
+      Number(r.amount).toFixed(2),
       r.profiles?.display_name ?? '',
     ])
-    const csv = [header, ...lines].map((line) => line.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `sian-finance-report-${range.start}-to-${range.end}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+  }
+  const filenameBase = `sian-finance-report-${range.start}-to-${range.end}`
+
+  function exportCsv() {
+    exportToCsv(`${filenameBase}.csv`, reportHeaders, reportRows())
+  }
+  function exportXls() {
+    exportToXls(`${filenameBase}.xls`, reportHeaders, reportRows(), 'Report')
+  }
+  function exportPdf() {
+    exportToPdf(`${filenameBase}.pdf`, {
+      title: isFamily ? 'SIAN Family Finance — Report' : 'My Finances — Report',
+      subtitle: `${range.start} to ${range.end}`,
+      headers: reportHeaders,
+      rows: reportRows(),
+      summary: [
+        `Income: ₱${income.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        `Expenses: ₱${expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        `Net: ₱${(income - expenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      ],
+    })
   }
 
   return (
@@ -82,7 +95,7 @@ export default function Reports() {
       <PageHeader
         title={isFamily ? 'Family Reports' : 'My Reports'}
         subtitle="Filter and export your financial records"
-        action={<Button variant="outline" onClick={exportCsv} disabled={rows.length === 0}><Download className="h-4 w-4" /> Export CSV</Button>}
+        action={<ExportMenu onCsv={exportCsv} onXls={exportXls} onPdf={exportPdf} disabled={rows.length === 0} />}
       />
 
       <Card className="mb-5 flex flex-wrap gap-3" padded>
