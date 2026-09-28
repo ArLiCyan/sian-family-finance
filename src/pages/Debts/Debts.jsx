@@ -63,7 +63,7 @@ export default function Debts() {
   return (
     <div>
       <PageHeader
-        title={isFamily ? 'Family Debts & Loans' : 'My Debts & Loans'}
+        title={isFamily ? 'Loans and Credit Card' : 'My Debts & Loans'}
         subtitle="Money borrowed or lent, with automatic balance and payoff tracking"
         action={
           <div className="flex gap-2">
@@ -71,7 +71,7 @@ export default function Debts() {
               <Archive className="h-4 w-4" /> Trash
             </Button>
             <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
-              <Plus className="h-4 w-4" /> Add Debt
+              <Plus className="h-4 w-4" /> Add
             </Button>
           </div>
         }
@@ -84,7 +84,7 @@ export default function Debts() {
           icon={Landmark}
           title="No debts recorded"
           message="Track money borrowed or lent, with payments, remaining balance, and months left to pay."
-          action={<Button onClick={() => setFormOpen(true)}>Add Debt</Button>}
+          action={<Button onClick={() => setFormOpen(true)}>Add</Button>}
         />
       ) : (
         <Card>
