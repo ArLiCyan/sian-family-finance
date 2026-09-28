@@ -1434,17 +1434,17 @@ create policy goals_insert on goals for insert
     created_by = current_profile_id()
     and (
       (scope = 'private' and owner_profile_id = current_profile_id())
-      or (scope = 'family' and is_family_admin(family_id))
+      or (scope = 'family' and is_family_member(family_id))
     )
   );
 create policy goals_update on goals for update
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   )
   with check (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 
 -- ================= goal_contributions =================
@@ -1479,17 +1479,17 @@ create policy debts_insert on debts for insert
     created_by = current_profile_id()
     and (
       (scope = 'private' and owner_profile_id = current_profile_id())
-      or (scope = 'family' and is_family_admin(family_id))
+      or (scope = 'family' and is_family_member(family_id))
     )
   );
 create policy debts_update on debts for update
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   )
   with check (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 
 -- ================= debt_payments =================

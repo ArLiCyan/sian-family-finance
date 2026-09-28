@@ -16,14 +16,13 @@ import { StatusBadge, goalStatusColor } from '../../components/ui/Badge'
 import { formatDate } from '../../lib/format'
 
 export default function Goals() {
-  const { profile, family, role } = useAuth()
+  const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
   const [goals, setGoals] = useState([])
   const [progress, setProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [depositFor, setDepositFor] = useState(null)
-  const canCreate = !isFamily || role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -48,13 +47,13 @@ export default function Goals() {
       <PageHeader
         title={isFamily ? 'Family Goals' : 'My Goals'}
         subtitle="Track progress toward savings and purchase goals"
-        action={canCreate && <Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> New Goal</Button>}
+        action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> New Goal</Button>}
       />
 
       {loading ? (
         <LoadingState />
       ) : goals.length === 0 ? (
-        <EmptyState icon={Target} title="No goals yet" message="Create a goal like an emergency fund, new appliance, or vacation." action={canCreate && <Button onClick={() => setFormOpen(true)}>Create Goal</Button>} />
+        <EmptyState icon={Target} title="No goals yet" message="Create a goal like an emergency fund, new appliance, or vacation." action={<Button onClick={() => setFormOpen(true)}>Create Goal</Button>} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {goals.map((g) => {

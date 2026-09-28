@@ -19,7 +19,7 @@ import DebtDetailModal from './DebtDetailModal'
 import DebtTrashModal from './DebtTrashModal'
 
 export default function Debts() {
-  const { profile, family, role } = useAuth()
+  const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
   const { showToast } = useToast()
   const [debts, setDebts] = useState([])
@@ -31,7 +31,6 @@ export default function Debts() {
   const [viewing, setViewing] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [trashOpen, setTrashOpen] = useState(false)
-  const canManage = !isFamily || role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -71,11 +70,9 @@ export default function Debts() {
             <Button variant="outline" onClick={() => setTrashOpen(true)}>
               <Archive className="h-4 w-4" /> Trash
             </Button>
-            {canManage && (
-              <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
-                <Plus className="h-4 w-4" /> Add Debt
-              </Button>
-            )}
+            <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
+              <Plus className="h-4 w-4" /> Add Debt
+            </Button>
           </div>
         }
       />
@@ -87,7 +84,7 @@ export default function Debts() {
           icon={Landmark}
           title="No debts recorded"
           message="Track money borrowed or lent, with payments, remaining balance, and months left to pay."
-          action={canManage && <Button onClick={() => setFormOpen(true)}>Add Debt</Button>}
+          action={<Button onClick={() => setFormOpen(true)}>Add Debt</Button>}
         />
       ) : (
         <Card>
@@ -127,11 +124,9 @@ export default function Debts() {
                             <CircleDollarSign className="h-4 w-4" />
                           </button>
                         )}
-                        {canManage && (
-                          <button onClick={() => setDeleting(d)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <button onClick={() => setDeleting(d)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   )
@@ -154,7 +149,7 @@ export default function Debts() {
         onClose={() => setViewing(null)}
         onEdit={(d) => { setViewing(null); setEditing(d); setFormOpen(true) }}
         onPay={(d) => { setViewing(null); setPaying(d) }}
-        onDelete={canManage ? (d) => { setViewing(null); setDeleting(d) } : undefined}
+        onDelete={(d) => { setViewing(null); setDeleting(d) }}
       />
       <DebtTrashModal open={trashOpen} onClose={() => setTrashOpen(false)} onRestored={load} />
       <ConfirmDialog
