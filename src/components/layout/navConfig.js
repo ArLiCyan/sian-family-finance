@@ -5,15 +5,15 @@ import {
 
 export const familyNav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/transactions', label: 'Family Transactions', icon: ArrowLeftRight },
-  { to: '/accounts', label: 'Family Accounts', icon: Wallet },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
   { to: '/contributions', label: 'Contributions', icon: HandCoins },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/goals', label: 'Family Goals', icon: Target },
-  { to: '/debts', label: 'Family Debts', icon: Landmark },
-  { to: '/budgets', label: 'Family Budgets', icon: PiggyBank },
+  { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/debts', label: 'Loan', icon: Landmark },
+  { to: '/budgets', label: 'Budgets', icon: PiggyBank },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
-  { to: '/members', label: 'Family Members', icon: Users },
+  { to: '/members', label: 'Members', icon: Users },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
 ]
 
