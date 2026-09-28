@@ -163,22 +163,22 @@ create policy accounts_insert on financial_accounts for insert
     created_by = current_profile_id()
     and (
       (scope = 'private' and owner_profile_id = current_profile_id())
-      or (scope = 'family' and is_family_admin(family_id))
+      or (scope = 'family' and is_family_member(family_id))
     )
   );
 create policy accounts_update on financial_accounts for update
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   )
   with check (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 create policy accounts_delete on financial_accounts for delete
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 
 -- ================= transactions =================
