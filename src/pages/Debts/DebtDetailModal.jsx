@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { Pencil, CircleDollarSign } from 'lucide-react'
+import { Pencil, CircleDollarSign, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
@@ -16,7 +16,7 @@ import { computeInstallmentSchedule } from '../../lib/loanSchedule'
 const INSTALLMENT_STATUS_COLOR = { paid: 'green', partial: 'blue', overdue: 'red', upcoming: 'gray' }
 const INSTALLMENT_STATUS_LABEL = { paid: 'Paid', partial: 'Partial', overdue: 'Overdue', upcoming: 'Upcoming' }
 
-export default function DebtDetailModal({ debt, onClose, onEdit, onPay }) {
+export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete }) {
   const [projection, setProjection] = useState(null)
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -126,6 +126,15 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay }) {
                 <Button size="sm" onClick={() => onPay(debt)}>
                   <CircleDollarSign className="h-3.5 w-3.5" /> Record Payment
                 </Button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(debt)}
+                  title="Move to Trash"
+                  className="rounded-lg border border-gray-300 dark:border-sage-700 p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
           </div>
