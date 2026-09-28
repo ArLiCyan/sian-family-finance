@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Check, X as XIcon, HandCoins } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
 import { Select } from '../../components/ui/FormField'
@@ -16,13 +17,15 @@ const STATUS_OPTIONS = ['pending', 'submitted', 'confirmed', 'partially_confirme
 
 export default function Contributions() {
   const { profile, family, role } = useAuth()
+  const { showToast } = useToast()
   const [contributions, setContributions] = useState([])
+  const [myProjectRoles, setMyProjectRoles] = useState({})
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
-  const canManageAny = role === 'owner' || role === 'admin'
+  const isFamilyAdmin = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
-    if (!family) return
+    if (!family || !profile) return
     setLoading(true)
     let query = supabase
       .from('project_contributions')
@@ -32,15 +35,43 @@ export default function Contributions() {
     if (statusFilter) query = query.eq('status', statusFilter)
     const { data } = await query
     setContributions(data ?? [])
+
+    const projectIds = [...new Set((data ?? []).map((c) => c.projects?.id).filter(Boolean))]
+    if (projectIds.length > 0) {
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('project_id, role, can_approve_contributions')
+        .eq('profile_id', profile.id)
+        .in('project_id', projectIds)
+      setMyProjectRoles(Object.fromEntries((memberships ?? []).map((m) => [m.project_id, m])))
+    } else {
+      setMyProjectRoles({})
+    }
     setLoading(false)
-  }, [family, statusFilter])
+  }, [family, profile, statusFilter])
 
   useEffect(() => {
     load()
   }, [load])
 
+  // A contribution can be approved by a family Admin/Owner, or by anyone
+  // holding "Can approve" on that specific project — matching the same rule
+  // enforced by the database, so this never shows a button that would fail.
+  function canApprove(c) {
+    if (isFamilyAdmin) return true
+    const membership = myProjectRoles[c.projects?.id]
+    return membership?.role === 'owner' || !!membership?.can_approve_contributions
+  }
+
   async function verify(c, status) {
-    await supabase.from('project_contributions').update({ status, verified_by: profile.id, verified_at: new Date().toISOString() }).eq('id', c.id)
+    const { error } = await supabase
+      .from('project_contributions')
+      .update({ status, verified_by: profile.id, verified_at: new Date().toISOString() })
+      .eq('id', c.id)
+    if (error) {
+      showToast(`Couldn't ${status === 'confirmed' ? 'confirm' : 'reject'} contribution: ${error.message}`)
+      return
+    }
     load()
   }
 
@@ -86,7 +117,7 @@ export default function Contributions() {
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
                     <td className="py-2.5 pr-3"><StatusBadge status={c.status} /></td>
                     <td className="py-2.5 pl-3 text-right">
-                      {canManageAny && c.status === 'pending' && c.profile_id !== profile.id && (
+                      {canApprove(c) && c.status === 'pending' && c.profile_id !== profile.id && (
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => verify(c, 'confirmed')} className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30">
                             <Check className="h-4 w-4" />
