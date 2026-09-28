@@ -43,6 +43,8 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
 
   if (!debt) return null
 
+  const hasBreakdown = debt.principal_amount != null || debt.interest_amount != null || debt.fees_amount != null
+
   const original = Number(debt.original_amount)
   const totalPaid = Number(projection?.total_paid ?? 0)
   const remaining = Number(projection?.remaining_amount ?? original)
@@ -69,6 +71,17 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
             <div className="rounded-lg bg-gray-50 dark:bg-sage-950 p-3">
               <p className="text-xs uppercase text-gray-400">Original</p>
               <p className="mt-1 font-semibold text-gray-900 dark:text-gray-100"><CurrencyDisplay amount={original} /></p>
+              {hasBreakdown && (
+                <p className="mt-0.5 text-[11px] text-gray-400">
+                  {[
+                    debt.principal_amount != null && `₱${Number(debt.principal_amount).toLocaleString()} principal`,
+                    debt.interest_amount != null && `₱${Number(debt.interest_amount).toLocaleString()} interest`,
+                    debt.fees_amount != null && `₱${Number(debt.fees_amount).toLocaleString()} fees`,
+                  ]
+                    .filter(Boolean)
+                    .join(' + ')}
+                </p>
+              )}
             </div>
             <div className="rounded-lg bg-gray-50 dark:bg-sage-950 p-3">
               <p className="text-xs uppercase text-gray-400">Paid So Far</p>

@@ -1,61 +1,96 @@
 import { useEffect, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { Field, Input, Select, Textarea } from '../../components/ui/FormField'
+import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft'
 
 const today = () => new Date().toISOString().slice(0, 10)
+const DRAFT_KEY = 'sian_debt_form_draft'
+const blankForm = () => ({
+  direction: 'borrowed',
+  counterparty_name: '',
+  original_amount: '',
+  start_date: today(),
+  due_date: '',
+  installment_amount: '',
+  due_day_of_month: '',
+  principal_amount: '',
+  interest_amount: '',
+  fees_amount: '',
+  notes: '',
+})
 
 export default function DebtForm({ open, onClose, onSaved, initial }) {
   const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
   const isEdit = !!initial?.id
-  const [form, setForm] = useState({
-    direction: 'borrowed',
-    counterparty_name: '',
-    original_amount: '',
-    start_date: today(),
-    due_date: '',
-    installment_amount: '',
-    due_day_of_month: '',
-    notes: '',
-  })
+  const [form, setForm] = useState(blankForm)
   const [historicalPayments, setHistoricalPayments] = useState([])
+  const [restoredDraft, setRestoredDraft] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (open) {
-      setForm(
-        initial
-          ? {
-              direction: initial.direction,
-              counterparty_name: initial.counterparty_name,
-              original_amount: initial.original_amount,
-              start_date: initial.start_date ?? today(),
-              due_date: initial.due_date ?? '',
-              installment_amount: initial.installment_amount ?? '',
-              due_day_of_month: initial.due_day_of_month ?? '',
-              notes: initial.notes ?? '',
-            }
-          : {
-              direction: 'borrowed',
-              counterparty_name: '',
-              original_amount: '',
-              start_date: today(),
-              due_date: '',
-              installment_amount: '',
-              due_day_of_month: '',
-              notes: '',
-            }
-      )
+    if (!open) return
+
+    if (initial) {
+      setForm({
+        direction: initial.direction,
+        counterparty_name: initial.counterparty_name,
+        original_amount: initial.original_amount,
+        start_date: initial.start_date ?? today(),
+        due_date: initial.due_date ?? '',
+        installment_amount: initial.installment_amount ?? '',
+        due_day_of_month: initial.due_day_of_month ?? '',
+        principal_amount: initial.principal_amount ?? '',
+        interest_amount: initial.interest_amount ?? '',
+        fees_amount: initial.fees_amount ?? '',
+        notes: initial.notes ?? '',
+      })
       setHistoricalPayments([])
+      setRestoredDraft(false)
       setError('')
+      return
     }
+
+    // Creating new: recover an in-progress draft if the tab got reloaded
+    // (e.g. the browser discarded a backgrounded tab) before it was saved.
+    const draft = loadDraft(DRAFT_KEY)
+    if (draft) {
+      setForm(draft.form ?? blankForm())
+      setHistoricalPayments(draft.historicalPayments ?? [])
+      setRestoredDraft(true)
+    } else {
+      setForm(blankForm())
+      setHistoricalPayments([])
+      setRestoredDraft(false)
+    }
+    setError('')
   }, [open, initial])
+
+  // Mirror every change to localStorage so a mid-typing reload never loses it.
+  // Skip writing an all-empty form so a discard doesn't get immediately
+  // re-saved as a "draft" that would just restore blank fields next time.
+  useEffect(() => {
+    if (!open || isEdit) return
+    const isBlank = !form.counterparty_name && !form.original_amount && historicalPayments.length === 0
+    if (isBlank) {
+      clearDraft(DRAFT_KEY)
+    } else {
+      saveDraft(DRAFT_KEY, { form, historicalPayments })
+    }
+  }, [open, isEdit, form, historicalPayments])
+
+  function discardDraft() {
+    clearDraft(DRAFT_KEY)
+    setForm(blankForm())
+    setHistoricalPayments([])
+    setRestoredDraft(false)
+  }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -92,6 +127,9 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       due_date: form.due_date || null,
       installment_amount: form.installment_amount ? Number(form.installment_amount) : null,
       due_day_of_month: form.due_day_of_month ? Number(form.due_day_of_month) : null,
+      principal_amount: form.principal_amount ? Number(form.principal_amount) : null,
+      interest_amount: form.interest_amount ? Number(form.interest_amount) : null,
+      fees_amount: form.fees_amount ? Number(form.fees_amount) : null,
       notes: form.notes || null,
     }
 
@@ -145,13 +183,26 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
     }
 
     setSaving(false)
+    clearDraft(DRAFT_KEY)
     onSaved?.()
     onClose()
   }
 
+  const breakdownSum = (Number(form.principal_amount) || 0) + (Number(form.interest_amount) || 0) + (Number(form.fees_amount) || 0)
+
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Edit Debt / Loan' : 'Add Debt / Loan'} size="sm">
       <form onSubmit={handleSubmit}>
+        {restoredDraft && (
+          <div className="mb-4 flex items-center justify-between gap-2 rounded-lg bg-sage-50 dark:bg-sage-900/40 px-3 py-2 text-xs text-sage-800 dark:text-sage-200">
+            <span className="flex items-center gap-1.5">
+              <RotateCcw className="h-3.5 w-3.5 shrink-0" /> Restored your unsaved draft from earlier.
+            </span>
+            <button type="button" onClick={discardDraft} className="font-medium underline shrink-0">
+              Discard
+            </button>
+          </div>
+        )}
         <Field label="Direction" required>
           <Select value={form.direction} onChange={(e) => update('direction', e.target.value)} disabled={isEdit}>
             <option value="borrowed">I borrowed money</option>
@@ -171,6 +222,40 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
             disabled={isEdit}
           />
         </Field>
+        <div className="mb-4 rounded-lg border border-gray-200 dark:border-sage-800 p-3">
+          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Loan breakdown (optional)</p>
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            For reference only — doesn't affect any calculation above, which always uses the Total Loan Amount.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Principal">
+              <Input type="number" min="0" step="0.01" value={form.principal_amount} onChange={(e) => update('principal_amount', e.target.value)} />
+            </Field>
+            <Field label="Interest">
+              <Input type="number" min="0" step="0.01" value={form.interest_amount} onChange={(e) => update('interest_amount', e.target.value)} />
+            </Field>
+            <Field label="Fees">
+              <Input type="number" min="0" step="0.01" value={form.fees_amount} onChange={(e) => update('fees_amount', e.target.value)} />
+            </Field>
+          </div>
+          {breakdownSum > 0 && (
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                Adds up to <span className="font-medium text-gray-700 dark:text-gray-300">₱{breakdownSum.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </span>
+              {!isEdit && (
+                <button
+                  type="button"
+                  onClick={() => update('original_amount', breakdownSum.toFixed(2))}
+                  className="font-medium text-sage-600 hover:underline dark:text-sage-400"
+                >
+                  Use as Total Loan Amount →
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <Field label="Start Date" required hint="When the loan actually started — doesn't have to be today.">
           <Input type="date" value={form.start_date} onChange={(e) => update('start_date', e.target.value)} />
         </Field>
