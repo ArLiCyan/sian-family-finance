@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import LoadingState from '../../components/ui/LoadingState'
 import Card from '../../components/ui/Card'
 import Tabs from '../../components/ui/Tabs'
@@ -24,6 +25,7 @@ const STATUS_OPTIONS = ['planning', 'active', 'on_hold', 'completed', 'cancelled
 export default function ProjectDetail() {
   const { id } = useParams()
   const { profile, role } = useAuth()
+  const { showToast } = useToast()
   const [project, setProject] = useState(null)
   const [summary, setSummary] = useState(null)
   const [members, setMembers] = useState([])
@@ -48,7 +50,11 @@ export default function ProjectDetail() {
   }, [load])
 
   async function updateStatus(status) {
-    await supabase.from('projects').update({ status }).eq('id', id)
+    const { error } = await supabase.from('projects').update({ status }).eq('id', id)
+    if (error) {
+      showToast(`Couldn't update project status: ${error.message}`)
+      return
+    }
     load()
   }
 

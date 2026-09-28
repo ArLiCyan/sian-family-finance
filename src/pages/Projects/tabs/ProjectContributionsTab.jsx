@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, Check, X as XIcon, Settings2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useToast } from '../../../contexts/ToastContext'
 import { getAccountsWithBalances } from '../../../lib/api'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -217,6 +218,7 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
 }
 
 function RequirementsModal({ open, onClose, project, members, onSaved }) {
+  const { showToast } = useToast()
   const [amounts, setAmounts] = useState({})
   const [saving, setSaving] = useState(false)
 
@@ -234,10 +236,15 @@ function RequirementsModal({ open, onClose, project, members, onSaved }) {
     setSaving(true)
     for (const m of members) {
       const amount = Number(amounts[m.profile_id] || 0)
-      await supabase.from('project_contribution_requirements').upsert(
+      const { error } = await supabase.from('project_contribution_requirements').upsert(
         { project_id: project.id, profile_id: m.profile_id, expected_amount: amount },
         { onConflict: 'project_id,profile_id' }
       )
+      if (error) {
+        setSaving(false)
+        showToast(`Couldn't save expected amount for ${m.profiles?.display_name}: ${error.message}`)
+        return
+      }
     }
     setSaving(false)
     onSaved?.()
@@ -269,6 +276,7 @@ function RequirementsModal({ open, onClose, project, members, onSaved }) {
 
 function VerifyModal({ state, onClose, onSaved }) {
   const { profile } = useAuth()
+  const { showToast } = useToast()
   const [note, setNote] = useState('')
   const [partialAmount, setPartialAmount] = useState('')
   const [partial, setPartial] = useState(false)
@@ -286,7 +294,7 @@ function VerifyModal({ state, onClose, onSaved }) {
   async function handleConfirm() {
     setSaving(true)
     const status = action === 'confirm' ? (partial ? 'partially_confirmed' : 'confirmed') : 'rejected'
-    await supabase
+    const { error } = await supabase
       .from('project_contributions')
       .update({
         status,
@@ -297,6 +305,10 @@ function VerifyModal({ state, onClose, onSaved }) {
       })
       .eq('id', contribution.id)
     setSaving(false)
+    if (error) {
+      showToast(`Couldn't ${action} contribution: ${error.message}`)
+      return
+    }
     onSaved?.()
     onClose()
   }

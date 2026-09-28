@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, Archive, RotateCcw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
@@ -11,6 +12,7 @@ import LoadingState from '../../components/ui/LoadingState'
 
 export default function CategoriesAdmin() {
   const { profile, family } = useAuth()
+  const { showToast } = useToast()
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -31,7 +33,11 @@ export default function CategoriesAdmin() {
   }, [load])
 
   async function toggleActive(cat) {
-    await supabase.from('categories').update({ is_active: !cat.is_active }).eq('id', cat.id)
+    const { error } = await supabase.from('categories').update({ is_active: !cat.is_active }).eq('id', cat.id)
+    if (error) {
+      showToast(`Couldn't update category: ${error.message}`)
+      return
+    }
     load()
   }
 

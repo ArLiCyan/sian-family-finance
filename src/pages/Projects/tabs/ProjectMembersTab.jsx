@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { UserPlus, Trash2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useToast } from '../../../contexts/ToastContext'
 import { getFamilyMembers } from '../../../lib/api'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
@@ -11,6 +12,7 @@ import { initials } from '../../../lib/format'
 
 export default function ProjectMembersTab({ project, members, canManage, onChange }) {
   const { family } = useAuth()
+  const { showToast } = useToast()
   const [open, setOpen] = useState(false)
   const [candidates, setCandidates] = useState([])
   const [selected, setSelected] = useState('')
@@ -26,19 +28,31 @@ export default function ProjectMembersTab({ project, members, canManage, onChang
 
   async function addMember() {
     if (!selected) return
-    await supabase.from('project_members').insert({ project_id: project.id, profile_id: selected, role: 'participant' })
+    const { error } = await supabase.from('project_members').insert({ project_id: project.id, profile_id: selected, role: 'participant' })
+    if (error) {
+      showToast(`Couldn't add participant: ${error.message}`)
+      return
+    }
     setOpen(false)
     setSelected('')
     onChange?.()
   }
 
   async function removeMember(profileId) {
-    await supabase.from('project_members').delete().eq('project_id', project.id).eq('profile_id', profileId)
+    const { error } = await supabase.from('project_members').delete().eq('project_id', project.id).eq('profile_id', profileId)
+    if (error) {
+      showToast(`Couldn't remove participant: ${error.message}`)
+      return
+    }
     onChange?.()
   }
 
   async function togglePermission(profileId, field, value) {
-    await supabase.from('project_members').update({ [field]: value }).eq('project_id', project.id).eq('profile_id', profileId)
+    const { error } = await supabase.from('project_members').update({ [field]: value }).eq('project_id', project.id).eq('profile_id', profileId)
+    if (error) {
+      showToast(`Couldn't update permission: ${error.message}`)
+      return
+    }
     onChange?.()
   }
 

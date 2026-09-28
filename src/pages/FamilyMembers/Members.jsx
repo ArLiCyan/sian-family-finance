@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
 import LoadingState from '../../components/ui/LoadingState'
@@ -13,6 +14,7 @@ const ROLE_COLORS = { owner: 'navy', admin: 'blue', member: 'gray' }
 
 export default function Members() {
   const { family, role: myRole, membership } = useAuth()
+  const { showToast } = useToast()
   const [members, setMembers] = useState([])
   const [summaries, setSummaries] = useState({})
   const [loading, setLoading] = useState(true)
@@ -42,7 +44,11 @@ export default function Members() {
   }, [load])
 
   async function changeRole(membershipId, role) {
-    await supabase.from('family_memberships').update({ role }).eq('id', membershipId)
+    const { error } = await supabase.from('family_memberships').update({ role }).eq('id', membershipId)
+    if (error) {
+      showToast(`Couldn't update role: ${error.message}`)
+      return
+    }
     load()
   }
 

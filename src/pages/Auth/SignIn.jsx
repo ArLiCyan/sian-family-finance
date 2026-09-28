@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { supabase, setRememberMe } from '../../lib/supabase'
 import AuthLayout from './AuthLayout'
 import { Field, Input } from '../../components/ui/FormField'
 import Button from '../../components/ui/Button'
@@ -10,6 +10,7 @@ export default function SignIn() {
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,6 +18,7 @@ export default function SignIn() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    setRememberMe(remember)
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (signInError) {
@@ -35,6 +37,15 @@ export default function SignIn() {
         <Field label="Password" required>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
+        <label className="mb-4 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-sage-600 focus:ring-sage-500"
+          />
+          Remember me on this device
+        </label>
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
         <Button type="submit" className="w-full" loading={loading}>
           Sign In

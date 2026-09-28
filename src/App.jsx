@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { FinanceModeProvider } from './contexts/FinanceModeContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AppShell from './components/layout/AppShell'
 
@@ -29,6 +30,7 @@ import Settings from './pages/Settings/Settings'
 export default function App() {
   return (
     <ThemeProvider>
+      <ToastProvider>
       <AuthProvider>
         <FinanceModeProvider>
           <Routes>
@@ -63,6 +65,7 @@ export default function App() {
           </Routes>
         </FinanceModeProvider>
       </AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   )
 }

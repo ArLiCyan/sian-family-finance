@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
+import { useToast } from '../../contexts/ToastContext'
 import { getCategories, TRANSACTION_TYPE_LABELS } from '../../lib/api'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
@@ -18,6 +19,7 @@ import { ArrowLeftRight } from 'lucide-react'
 export default function Transactions() {
   const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
+  const { showToast } = useToast()
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -54,8 +56,15 @@ export default function Transactions() {
   }, [load])
 
   async function handleDelete() {
-    await supabase.from('transactions').update({ deleted_at: new Date().toISOString(), deleted_by: profile.id }).eq('id', deleting.id)
+    const { error } = await supabase
+      .from('transactions')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: profile.id })
+      .eq('id', deleting.id)
     setDeleting(null)
+    if (error) {
+      showToast(`Couldn't delete transaction: ${error.message}`)
+      return
+    }
     load()
   }
 

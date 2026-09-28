@@ -3,6 +3,7 @@ import { Plus, Wallet, Archive, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
+import { useToast } from '../../contexts/ToastContext'
 import { getAccountsWithBalances, ACCOUNT_TYPE_LABELS } from '../../lib/api'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
@@ -16,6 +17,7 @@ import AccountForm from './AccountForm'
 export default function Accounts() {
   const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
+  const { showToast } = useToast()
   const [accounts, setAccounts] = useState([])
   const [balances, setBalances] = useState({})
   const [loading, setLoading] = useState(true)
@@ -39,8 +41,12 @@ export default function Accounts() {
   }, [load])
 
   async function handleArchive() {
-    await supabase.from('financial_accounts').update({ status: 'archived' }).eq('id', archiving.id)
+    const { error } = await supabase.from('financial_accounts').update({ status: 'archived' }).eq('id', archiving.id)
     setArchiving(null)
+    if (error) {
+      showToast(`Couldn't archive account: ${error.message}`)
+      return
+    }
     load()
   }
 

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import Card, { CardHeader } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import { Field, Input, Select } from '../../components/ui/FormField'
 
 export default function FamilySettingsAdmin() {
   const { family, role, refreshProfile } = useAuth()
+  const { showToast } = useToast()
   const [form, setForm] = useState({ name: '', currency: 'PHP', timezone: 'Asia/Manila' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -19,8 +21,12 @@ export default function FamilySettingsAdmin() {
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('families').update({ name: form.name, currency: form.currency, timezone: form.timezone }).eq('id', family.id)
+    const { error } = await supabase.from('families').update({ name: form.name, currency: form.currency, timezone: form.timezone }).eq('id', family.id)
     setSaving(false)
+    if (error) {
+      showToast(`Couldn't save family settings: ${error.message}`)
+      return
+    }
     setSaved(true)
     refreshProfile()
     setTimeout(() => setSaved(false), 2000)
