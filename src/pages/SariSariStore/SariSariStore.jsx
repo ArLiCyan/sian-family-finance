@@ -55,16 +55,16 @@ export default function SariSariStore() {
   const canManageCapital = isFamilyAdmin || membership?.role === 'owner' || !!membership?.can_manage_capital
   const hasAccess = isFamilyAdmin || !!membership
 
-  if (loading) return <LoadingState label="Loading Sari-Sari Store…" />
+  if (loading) return <LoadingState label="Loading InvenTrack…" />
 
   if (!hasAccess) {
     return (
       <div>
-        <PageHeader title="Sari-Sari Store" subtitle="Inventory and business capital tracking" />
+        <PageHeader title="InvenTrack" subtitle="Inventory and business capital tracking" />
         <EmptyState
           icon={Store}
           title="Not authorized"
-          message="You don't have access to the Sari-Sari Store section yet. Ask a family admin to grant you access."
+          message="You don't have access to InvenTrack yet. Ask a family admin to grant you access."
         />
       </div>
     )
@@ -72,7 +72,7 @@ export default function SariSariStore() {
 
   return (
     <div>
-      <PageHeader title="Sari-Sari Store" subtitle="Inventory and business capital tracking" />
+      <PageHeader title="InvenTrack" subtitle="Inventory and business capital tracking" />
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
       {tab === 'dashboard' && (
         <StoreDashboardTab family={family} isFamilyAdmin={isFamilyAdmin} onAccessChanged={load} />

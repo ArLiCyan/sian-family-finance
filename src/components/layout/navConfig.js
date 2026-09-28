@@ -12,7 +12,7 @@ export const familyNav = [
   { to: '/goals', label: 'Goals', icon: Target },
   { to: '/debts', label: 'Loan', icon: Landmark },
   { to: '/budgets', label: 'Budgets', icon: PiggyBank },
-  { to: '/sari-sari-store', label: 'Sari-Sari Store', icon: Store },
+  { to: '/sari-sari-store', label: 'InvenTrack', icon: Store },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
   { to: '/members', label: 'Members', icon: Users },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },

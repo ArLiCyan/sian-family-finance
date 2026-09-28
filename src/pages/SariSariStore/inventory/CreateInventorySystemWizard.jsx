@@ -155,7 +155,7 @@ export default function CreateInventorySystemWizard({ open, onClose, family, onC
       {step === 3 && (
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Low-stock alerts for this system will automatically appear on your Sari-Sari Store Dashboard once you set a
+            Low-stock alerts for this system will automatically appear on your InvenTrack Dashboard once you set a
             low-stock threshold on individual products (in the Products tab, after creating this system).
           </p>
         </div>

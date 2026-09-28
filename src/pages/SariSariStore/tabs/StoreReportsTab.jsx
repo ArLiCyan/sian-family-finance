@@ -80,7 +80,7 @@ export default function StoreReportsTab({ family }) {
           disabled={loading}
           onCsv={() => withLoading(async () => exportToCsv('sari-sari-inventory-history.csv', inventoryHeaders, await fetchInventoryRows()))}
           onXls={() => withLoading(async () => exportToXls('sari-sari-inventory-history.xls', inventoryHeaders, await fetchInventoryRows(), 'Inventory History'))}
-          onPdf={() => withLoading(async () => exportToPdf('sari-sari-inventory-history.pdf', { title: 'Sari-Sari Store — Inventory History', headers: inventoryHeaders, rows: await fetchInventoryRows() }))}
+          onPdf={() => withLoading(async () => exportToPdf('sari-sari-inventory-history.pdf', { title: 'InvenTrack — Inventory History', headers: inventoryHeaders, rows: await fetchInventoryRows() }))}
         />
       </Card>
       <Card>
@@ -89,7 +89,7 @@ export default function StoreReportsTab({ family }) {
           disabled={loading}
           onCsv={() => withLoading(async () => exportToCsv('sari-sari-capital-repayments.csv', capitalHeaders, await fetchCapitalRows()))}
           onXls={() => withLoading(async () => exportToXls('sari-sari-capital-repayments.xls', capitalHeaders, await fetchCapitalRows(), 'Repayments'))}
-          onPdf={() => withLoading(async () => exportToPdf('sari-sari-capital-repayments.pdf', { title: 'Sari-Sari Store — Capital & Repayments', headers: capitalHeaders, rows: await fetchCapitalRows() }))}
+          onPdf={() => withLoading(async () => exportToPdf('sari-sari-capital-repayments.pdf', { title: 'InvenTrack — Capital & Repayments', headers: capitalHeaders, rows: await fetchCapitalRows() }))}
         />
       </Card>
     </div>
