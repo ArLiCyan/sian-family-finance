@@ -65,25 +65,37 @@ left join (
 
 -- ---------- Per-member contribution status within a project ----------
 
+-- Sourced from project_members + requirements + actual contributions (a
+-- union), not just project_contribution_requirements, so a member who
+-- contributed without ever being assigned a personal quota still shows up.
 create or replace view project_member_contribution_status
 with (security_invoker = true) as
+with contributors as (
+  select profile_id, project_id from project_members
+  union
+  select profile_id, project_id from project_contribution_requirements
+  union
+  select profile_id, project_id from project_contributions
+)
 select
-  req.project_id,
-  req.profile_id,
+  ct.project_id,
+  ct.profile_id,
   req.expected_amount,
   coalesce(c.confirmed, 0) as confirmed_amount,
   coalesce(c.pending, 0) as pending_amount,
-  greatest(req.expected_amount - coalesce(c.confirmed, 0), 0) as remaining_amount,
-  case when req.expected_amount > 0
+  case when req.expected_amount is not null then greatest(req.expected_amount - coalesce(c.confirmed, 0), 0) else null end as remaining_amount,
+  case when coalesce(req.expected_amount, 0) > 0
     then round(coalesce(c.confirmed, 0) / req.expected_amount * 100, 2)
-    else 0 end as percentage_complete
-from project_contribution_requirements req
+    else null end as percentage_complete
+from contributors ct
+left join project_contribution_requirements req on req.project_id = ct.project_id and req.profile_id = ct.profile_id
 left join (
   select project_id, profile_id,
     sum(coalesce(confirmed_amount, amount)) filter (where status in ('confirmed', 'partially_confirmed')) as confirmed,
     sum(amount) filter (where status in ('pending', 'submitted')) as pending
   from project_contributions group by project_id, profile_id
-) c on c.project_id = req.project_id and c.profile_id = req.profile_id;
+) c on c.project_id = ct.project_id and c.profile_id = ct.profile_id
+where coalesce(c.confirmed, 0) > 0 or coalesce(c.pending, 0) > 0 or req.expected_amount is not null;
 
 -- ---------- Debt remaining balance ----------
 

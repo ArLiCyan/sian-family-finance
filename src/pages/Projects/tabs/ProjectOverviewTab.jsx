@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { useRealtimeRefresh } from '../../../lib/useRealtimeRefresh'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import ProgressBar from '../../../components/financial/ProgressBar'
 import CurrencyDisplay from '../../../components/financial/CurrencyDisplay'
@@ -9,13 +10,19 @@ import EmptyState from '../../../components/ui/EmptyState'
 export default function ProjectOverviewTab({ project, members }) {
   const [statuses, setStatuses] = useState([])
 
-  useEffect(() => {
+  const load = useCallback(() => {
     supabase
       .from('project_member_contribution_status')
       .select('*, profiles(display_name)')
       .eq('project_id', project.id)
       .then(({ data }) => setStatuses(data ?? []))
   }, [project.id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useRealtimeRefresh(`project-overview-${project.id}`, [{ table: 'project_contributions', filter: `project_id=eq.${project.id}` }], load)
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -40,7 +47,7 @@ export default function ProjectOverviewTab({ project, members }) {
       <Card>
         <CardHeader title="Member Funding Status" subtitle="Who has contributed so far" />
         {statuses.length === 0 ? (
-          <EmptyState title="No contribution targets set" message="Set expected contribution amounts in the Contributions tab." />
+          <EmptyState title="No contributions yet" message="Contributions members make toward this project will show up here." />
         ) : (
           <div className="space-y-3">
             {statuses.map((s) => (
@@ -48,10 +55,20 @@ export default function ProjectOverviewTab({ project, members }) {
                 <div className="flex justify-between text-sm mb-1">
                   <span className="font-medium text-gray-800 dark:text-gray-200">{s.profiles?.display_name}</span>
                   <span className="text-gray-500">
-                    <CurrencyDisplay amount={s.confirmed_amount} /> / <CurrencyDisplay amount={s.expected_amount} />
+                    {s.expected_amount != null ? (
+                      <>
+                        <CurrencyDisplay amount={s.confirmed_amount} /> / <CurrencyDisplay amount={s.expected_amount} />
+                      </>
+                    ) : (
+                      <CurrencyDisplay amount={s.confirmed_amount} />
+                    )}
                   </span>
                 </div>
-                <ProgressBar percent={s.percentage_complete} tone={s.percentage_complete >= 100 ? 'green' : 'navy'} />
+                {s.expected_amount != null ? (
+                  <ProgressBar percent={s.percentage_complete} tone={s.percentage_complete >= 100 ? 'green' : 'navy'} />
+                ) : (
+                  <p className="text-xs text-gray-400">No personal target set</p>
+                )}
               </div>
             ))}
           </div>
