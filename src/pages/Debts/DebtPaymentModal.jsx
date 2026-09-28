@@ -13,12 +13,27 @@ export default function DebtPaymentModal({ debt, remaining, onClose, onSaved }) 
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [locked, setLocked] = useState(false)
+
+  // A debt with a fixed Expected Monthly Payment behaves like a Shopee-style
+  // installment: default to that amount and lock the field, so it's not
+  // accidentally under-paid. The last payment can be smaller than the fixed
+  // amount if it would exceed what's left, and the lock can still be lifted
+  // for a genuine partial/extra payment.
+  const fixedAmount = debt?.installment_amount ? Math.min(Number(debt.installment_amount), Number(remaining)) : null
 
   useEffect(() => {
-    setAmount('')
+    if (fixedAmount != null) {
+      setAmount(fixedAmount.toFixed(2))
+      setLocked(true)
+    } else {
+      setAmount('')
+      setLocked(false)
+    }
     setDate(new Date().toISOString().slice(0, 10))
     setNotes('')
     setError('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debt])
 
   if (!debt) return null
@@ -52,8 +67,42 @@ export default function DebtPaymentModal({ debt, remaining, onClose, onSaved }) 
         <p className="mb-3 text-sm text-gray-500">
           Remaining balance: <CurrencyDisplay amount={remaining} className="font-semibold" />
         </p>
-        <Field label="Payment Amount (₱)" required>
-          <Input type="number" min="0.01" step="0.01" max={remaining} value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+        <Field
+          label={
+            <span className="flex items-center justify-between">
+              Payment Amount (₱)
+              {fixedAmount != null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (locked) {
+                      setLocked(false)
+                    } else {
+                      setAmount(fixedAmount.toFixed(2))
+                      setLocked(true)
+                    }
+                  }}
+                  className="text-[11px] font-normal text-sage-600 hover:underline dark:text-sage-400"
+                >
+                  {locked ? 'Pay a different amount' : 'Use fixed monthly payment'}
+                </button>
+              )}
+            </span>
+          }
+          required
+          hint={locked ? `Fixed at your Expected Monthly Payment of ₱${fixedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}.` : undefined}
+        >
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            max={remaining}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={locked}
+            autoFocus={!locked}
+            className={locked ? 'cursor-not-allowed bg-gray-100 text-gray-500 dark:bg-sage-900 dark:text-gray-400' : ''}
+          />
         </Field>
         <Field label="Date" required>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
