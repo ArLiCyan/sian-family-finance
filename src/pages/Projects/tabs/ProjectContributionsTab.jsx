@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Check, X as XIcon, Settings2 } from 'lucide-react'
+import { Plus, Check, X as XIcon, Settings2, Paperclip } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
 import { getAccountsWithBalances } from '../../../lib/api'
+import { useRealtimeRefresh } from '../../../lib/useRealtimeRefresh'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
+import ReceiptModal from '../../../components/financial/ReceiptModal'
 import { Field, Input, Select, Textarea } from '../../../components/ui/FormField'
 import { StatusBadge } from '../../../components/ui/Badge'
 import CurrencyDisplay from '../../../components/financial/CurrencyDisplay'
@@ -21,6 +23,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
   const [addOpen, setAddOpen] = useState(false)
   const [requirementsOpen, setRequirementsOpen] = useState(false)
   const [verifying, setVerifying] = useState(null)
+  const [viewingReceipt, setViewingReceipt] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -36,6 +39,8 @@ export default function ProjectContributionsTab({ project, members, canManage, o
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh(`project-contributions-${project.id}`, [{ table: 'project_contributions', filter: `project_id=eq.${project.id}` }], load)
 
   function afterChange() {
     load()
@@ -71,6 +76,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
                   <th className="py-2 pr-3">Method</th>
                   <th className="py-2 pr-3 text-right">Amount</th>
                   <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Receipt</th>
                   <th className="py-2 pl-3" />
                 </tr>
               </thead>
@@ -82,6 +88,19 @@ export default function ProjectContributionsTab({ project, members, canManage, o
                     <td className="py-2.5 pr-3 text-gray-500">{c.payment_method || '—'}</td>
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
                     <td className="py-2.5 pr-3"><StatusBadge status={c.status} /></td>
+                    <td className="py-2.5 pr-3">
+                      {c.receipt_path ? (
+                        <button
+                          onClick={() => setViewingReceipt(c.receipt_path)}
+                          title="View receipt"
+                          className="rounded p-1.5 text-sage-600 hover:bg-sage-50 dark:text-sage-400 dark:hover:bg-sage-800"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 dark:text-sage-700">—</span>
+                      )}
+                    </td>
                     <td className="py-2.5 pl-3 text-right">
                       {c.status === 'pending' && c.profile_id !== profile.id && (
                         <div className="flex gap-1 justify-end">
@@ -106,14 +125,19 @@ export default function ProjectContributionsTab({ project, members, canManage, o
       <AddContributionModal open={addOpen} onClose={() => setAddOpen(false)} project={project} onSaved={afterChange} />
       <RequirementsModal open={requirementsOpen} onClose={() => setRequirementsOpen(false)} project={project} members={members} onSaved={afterChange} />
       <VerifyModal state={verifying} onClose={() => setVerifying(null)} onSaved={afterChange} />
+      <ReceiptModal path={viewingReceipt} onClose={() => setViewingReceipt(null)} />
     </div>
   )
 }
+
+const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+const MAX_RECEIPT_SIZE = 10 * 1024 * 1024 // 10MB
 
 function AddContributionModal({ open, onClose, project, onSaved }) {
   const { profile } = useAuth()
   const [accounts, setAccounts] = useState([])
   const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), payment_method: '', account_id: '', notes: '' })
+  const [receiptFile, setReceiptFile] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -121,9 +145,27 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
     if (open) {
       getAccountsWithBalances({ scope: 'private', profileId: profile.id }).then(({ accounts: a }) => setAccounts(a))
       setForm({ amount: '', date: new Date().toISOString().slice(0, 10), payment_method: '', account_id: '', notes: '' })
+      setReceiptFile(null)
       setError('')
     }
   }, [open, profile.id])
+
+  function handleReceiptChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!ALLOWED_RECEIPT_TYPES.includes(file.type)) {
+      setError('Receipt must be a JPG, PNG, WEBP, or PDF file.')
+      e.target.value = ''
+      return
+    }
+    if (file.size > MAX_RECEIPT_SIZE) {
+      setError('Receipt must be under 10MB.')
+      e.target.value = ''
+      return
+    }
+    setError('')
+    setReceiptFile(file)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -133,6 +175,18 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
     }
     setSaving(true)
     setError('')
+
+    let receiptPath = null
+    if (receiptFile) {
+      const ext = receiptFile.name.split('.').pop()
+      receiptPath = `family/${project.family_id}/${crypto.randomUUID()}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from('receipts').upload(receiptPath, receiptFile, { contentType: receiptFile.type })
+      if (uploadErr) {
+        setSaving(false)
+        setError(`Couldn't upload receipt: ${uploadErr.message}`)
+        return
+      }
+    }
 
     const { data: contribution, error: err } = await supabase
       .from('project_contributions')
@@ -145,6 +199,7 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
         account_id: form.account_id || null,
         notes: form.notes || null,
         status: 'pending',
+        receipt_path: receiptPath,
       })
       .select()
       .single()
@@ -206,6 +261,15 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
         </Field>
         <Field label="Notes">
           <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+        </Field>
+        <Field label="Receipt (optional)" hint="Upload proof of the money transfer — JPG, PNG, WEBP, or PDF, up to 10MB.">
+          <input
+            type="file"
+            accept={ALLOWED_RECEIPT_TYPES.join(',')}
+            onChange={handleReceiptChange}
+            className="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:rounded-lg file:border-0 file:bg-sage-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-sage-700 hover:file:bg-sage-200 dark:file:bg-sage-800 dark:file:text-sage-200"
+          />
+          {receiptFile && <p className="mt-1 text-xs text-gray-500">{receiptFile.name}</p>}
         </Field>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">

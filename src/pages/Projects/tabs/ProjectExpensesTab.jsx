@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { getCategories } from '../../../lib/api'
+import { useRealtimeRefresh } from '../../../lib/useRealtimeRefresh'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -38,6 +39,8 @@ export default function ProjectExpensesTab({ project, canManage, onChange }) {
     load()
     getCategories('expense').then(setCategories)
   }, [load])
+
+  useRealtimeRefresh(`project-expenses-${project.id}`, [{ table: 'project_expenses', filter: `project_id=eq.${project.id}` }], load)
 
   async function handleSubmit(e) {
     e.preventDefault()

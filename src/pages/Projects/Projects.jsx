@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, FolderKanban } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -42,6 +43,16 @@ export default function Projects() {
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh(
+    `projects-list-${family?.id}`,
+    family ? [
+      { table: 'projects', filter: `family_id=eq.${family.id}` },
+      { table: 'project_contributions' },
+      { table: 'project_expenses' },
+    ] : [],
+    load
+  )
 
   return (
     <div>

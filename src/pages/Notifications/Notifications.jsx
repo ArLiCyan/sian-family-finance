@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Bell, CheckCheck } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import PageHeader from '../../components/layout/PageHeader'
@@ -7,8 +8,10 @@ import Button from '../../components/ui/Button'
 import LoadingState from '../../components/ui/LoadingState'
 import EmptyState from '../../components/ui/EmptyState'
 import { formatDateTime } from '../../lib/format'
+import { resolveNotificationPath } from '../../lib/notifications'
 
 export default function Notifications() {
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -28,9 +31,13 @@ export default function Notifications() {
     load()
   }
 
-  async function toggleRead(n) {
-    await supabase.from('notifications').update({ is_read: !n.is_read }).eq('id', n.id)
-    load()
+  async function handleClick(n) {
+    if (!n.is_read) {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
+      load()
+    }
+    const path = await resolveNotificationPath(n)
+    if (path) navigate(path)
   }
 
   const unread = items.filter((n) => !n.is_read).length
@@ -51,7 +58,7 @@ export default function Notifications() {
         <Card padded={false}>
           <ul className="divide-y divide-gray-100 dark:divide-sage-800">
             {items.map((n) => (
-              <li key={n.id} onClick={() => toggleRead(n)} className={`cursor-pointer px-4 py-3 hover:bg-gray-50 dark:hover:bg-sage-800/50 ${!n.is_read ? 'bg-sage-50/60 dark:bg-sage-800/30' : ''}`}>
+              <li key={n.id} onClick={() => handleClick(n)} className={`cursor-pointer px-4 py-3 hover:bg-gray-50 dark:hover:bg-sage-800/50 ${!n.is_read ? 'bg-sage-50/60 dark:bg-sage-800/30' : ''}`}>
                 <div className="flex justify-between">
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{n.title}</p>
                   {!n.is_read && <span className="h-2 w-2 rounded-full bg-sage-500 mt-1.5" />}

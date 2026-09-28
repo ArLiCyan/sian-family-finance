@@ -3,10 +3,12 @@ import { Bell } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatDateTime } from '../../lib/format'
-import { Link } from 'react-router-dom'
+import { resolveNotificationPath } from '../../lib/notifications'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function NotificationBell() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -56,6 +58,13 @@ export default function NotificationBell() {
     load()
   }
 
+  async function handleClick(n) {
+    if (!n.is_read) await markRead(n.id)
+    setOpen(false)
+    const path = await resolveNotificationPath(n)
+    if (path) navigate(path)
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -86,7 +95,7 @@ export default function NotificationBell() {
               {items.map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => !n.is_read && markRead(n.id)}
+                  onClick={() => handleClick(n)}
                   className={`cursor-pointer px-4 py-3 hover:bg-gray-50 dark:hover:bg-sage-800 ${!n.is_read ? 'bg-sage-50/60 dark:bg-sage-800/40' : ''}`}
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{n.title}</p>

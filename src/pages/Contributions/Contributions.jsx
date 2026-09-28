@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, X as XIcon, HandCoins } from 'lucide-react'
+import { Check, X as XIcon, HandCoins, Paperclip } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
 import PageHeader from '../../components/layout/PageHeader'
 import Card from '../../components/ui/Card'
 import { Select } from '../../components/ui/FormField'
@@ -11,6 +12,7 @@ import LoadingState from '../../components/ui/LoadingState'
 import EmptyState from '../../components/ui/EmptyState'
 import { StatusBadge } from '../../components/ui/Badge'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
+import ReceiptModal from '../../components/financial/ReceiptModal'
 import { formatDateShort } from '../../lib/format'
 
 const STATUS_OPTIONS = ['pending', 'submitted', 'confirmed', 'partially_confirmed', 'rejected', 'refunded']
@@ -21,6 +23,7 @@ export default function Contributions() {
   const [contributions, setContributions] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
+  const [viewingReceipt, setViewingReceipt] = useState(null)
 
   const load = useCallback(async () => {
     if (!family || !profile) return
@@ -39,6 +42,8 @@ export default function Contributions() {
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh(`family-contributions-${family?.id}`, family ? [{ table: 'project_contributions' }] : [], load)
 
   // Any family member may confirm/reject anyone else's contribution — a
   // trusted-family policy, not gated by role or project membership. The
@@ -83,6 +88,7 @@ export default function Contributions() {
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3 text-right">Amount</th>
                   <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Receipt</th>
                   <th className="py-2 pl-3" />
                 </tr>
               </thead>
@@ -96,6 +102,19 @@ export default function Contributions() {
                     <td className="py-2.5 pr-3 text-gray-500">{formatDateShort(c.date)}</td>
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
                     <td className="py-2.5 pr-3"><StatusBadge status={c.status} /></td>
+                    <td className="py-2.5 pr-3">
+                      {c.receipt_path ? (
+                        <button
+                          onClick={() => setViewingReceipt(c.receipt_path)}
+                          title="View receipt"
+                          className="rounded p-1.5 text-sage-600 hover:bg-sage-50 dark:text-sage-400 dark:hover:bg-sage-800"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 dark:text-sage-700">—</span>
+                      )}
+                    </td>
                     <td className="py-2.5 pl-3 text-right">
                       {c.status === 'pending' && c.profile_id !== profile.id && (
                         <div className="flex gap-1 justify-end">
@@ -115,6 +134,7 @@ export default function Contributions() {
           </div>
         )}
       </Card>
+      <ReceiptModal path={viewingReceipt} onClose={() => setViewingReceipt(null)} />
     </div>
   )
 }

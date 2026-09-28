@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
 import LoadingState from '../../components/ui/LoadingState'
 import Card from '../../components/ui/Card'
 import Tabs from '../../components/ui/Tabs'
@@ -24,18 +25,19 @@ const STATUS_OPTIONS = ['planning', 'active', 'on_hold', 'completed', 'cancelled
 
 export default function ProjectDetail() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const { profile, role } = useAuth()
   const { showToast } = useToast()
   const [project, setProject] = useState(null)
   const [summary, setSummary] = useState(null)
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState(searchParams.get('tab') || 'overview')
 
   const canManage = members.some((m) => m.profile_id === profile?.id && (m.role === 'owner' || m.can_approve_contributions || m.can_manage_expenses)) || role === 'owner' || role === 'admin'
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (opts = {}) => {
+    if (opts.showLoading !== false) setLoading(true)
     const { data: p } = await supabase.from('projects').select('*').eq('id', id).single()
     setProject(p)
     const { data: s } = await supabase.from('project_financial_summary').select('*').eq('project_id', id).single()
@@ -48,6 +50,17 @@ export default function ProjectDetail() {
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh(
+    `project-detail-${id}`,
+    [
+      { table: 'projects', filter: `id=eq.${id}` },
+      { table: 'project_contributions', filter: `project_id=eq.${id}` },
+      { table: 'project_expenses', filter: `project_id=eq.${id}` },
+      { table: 'project_members', filter: `project_id=eq.${id}` },
+    ],
+    () => load({ showLoading: false })
+  )
 
   async function updateStatus(status) {
     const { error } = await supabase.from('projects').update({ status }).eq('id', id)
