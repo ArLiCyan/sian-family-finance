@@ -142,7 +142,7 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
       name: form.name.trim(),
       category_id: form.category_id || null,
       unit: form.unit || null,
-      low_stock_threshold: form.low_stock_threshold ? Number(form.low_stock_threshold) : null,
+      low_stock_threshold: form.low_stock_threshold ? Math.round(Number(form.low_stock_threshold)) : null,
       price: form.price ? Number(form.price) : null,
     }
     const { error: err } = isEdit
@@ -190,7 +190,7 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
           </Select>
         </Field>
         <Field label="Low Stock Threshold" hint="Get flagged on the Dashboard when ending inventory drops to or below this.">
-          <Input type="number" min="0" step="0.01" value={form.low_stock_threshold} onChange={(e) => setForm((f) => ({ ...f, low_stock_threshold: e.target.value }))} />
+          <Input type="number" min="0" step="1" inputMode="numeric" value={form.low_stock_threshold} onChange={(e) => setForm((f) => ({ ...f, low_stock_threshold: e.target.value }))} />
         </Field>
         <Field label="Price (₱)" hint="Optional reference price — for display only, doesn't affect any calculation.">
           <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />

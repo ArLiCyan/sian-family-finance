@@ -131,10 +131,27 @@ export default function CreateReportModal({ open, onClose, system, existingRepor
     if (field.field_type === 'date') {
       return <Input type="date" value={value} onChange={(e) => setCell(product.id, field.field_key, e.target.value)} style={bigStyle} />
     }
-    if (field.field_type === 'quantity' || field.field_type === 'money') {
+    if (field.field_type === 'quantity') {
+      // Whole units only — a bottle/pack/sachet count can't be fractional.
+      // Using a money-style 0.01 step let an accidental spinner-arrow click
+      // produce something like 0.05 bottles.
+      return <Input type="number" min="0" step="1" inputMode="numeric" value={value} onChange={(e) => setCell(product.id, field.field_key, e.target.value)} style={bigStyle} />
+    }
+    if (field.field_type === 'money') {
       return <Input type="number" min="0" step="0.01" value={value} onChange={(e) => setCell(product.id, field.field_key, e.target.value)} style={bigStyle} />
     }
     return <Input value={value} onChange={(e) => setCell(product.id, field.field_key, e.target.value)} style={bigStyle} />
+  }
+
+  // Belt-and-suspenders against fractional bottle counts — the input's
+  // step="1" stops the spinner arrows from drifting into decimals, but
+  // someone could still type "0.05" by hand, so round quantity fields here too.
+  function cleanValue(field, v) {
+    if (field.field_type === 'quantity') {
+      const n = Math.round(Number(v))
+      return Number.isFinite(n) ? n : v
+    }
+    return v
   }
 
   function buildItemRows(reportId) {
@@ -145,10 +162,10 @@ export default function CreateReportModal({ open, onClose, system, existingRepor
 
         if (endingField) {
           const v = values[p.id]?.[endingField.field_key]
-          if (v !== undefined && v !== '') merged[endingField.field_key] = v
+          if (v !== undefined && v !== '') merged[endingField.field_key] = cleanValue(endingField, v)
         }
         if (purchasedField) {
-          const addAmount = Number(values[p.id]?.[purchasedField.field_key] || 0)
+          const addAmount = Math.round(Number(values[p.id]?.[purchasedField.field_key] || 0))
           if (addAmount > 0) {
             const existing = Number(base[purchasedField.field_key] || 0)
             merged[purchasedField.field_key] = existing + addAmount
@@ -156,7 +173,7 @@ export default function CreateReportModal({ open, onClose, system, existingRepor
         }
         for (const f of otherFields) {
           const v = values[p.id]?.[f.field_key]
-          if (v !== undefined && v !== '') merged[f.field_key] = v
+          if (v !== undefined && v !== '') merged[f.field_key] = cleanValue(f, v)
         }
 
         if (Object.keys(merged).length === 0) return null
