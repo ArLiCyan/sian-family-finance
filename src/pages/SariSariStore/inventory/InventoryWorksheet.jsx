@@ -211,7 +211,7 @@ export default function InventoryWorksheet({ open, onClose, system, existingRepo
       disabled: true,
       basis: 220,
       grow: 2,
-      component: ({ rowData }) => <div className="px-2 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{rowData.itemName}</div>,
+      component: ({ rowData }) => <div className="px-2 text-sm font-medium text-gray-900 truncate">{rowData.itemName}</div>,
       copyValue: ({ rowData }) => rowData.itemName,
     },
     { ...keyColumn('addedStock', intColumn), title: 'Added Stock', basis: 110 },
@@ -221,7 +221,7 @@ export default function InventoryWorksheet({ open, onClose, system, existingRepo
       title: 'Previous Remaining',
       disabled: true,
       basis: 140,
-      component: ({ rowData }) => <div className="px-2 text-sm text-gray-500">{rowData.previousRemaining ?? '—'}</div>,
+      component: ({ rowData }) => <div className="px-2 text-sm text-gray-700">{rowData.previousRemaining ?? '—'}</div>,
       copyValue: ({ rowData }) => rowData.previousRemaining ?? '',
     },
     {
@@ -229,7 +229,7 @@ export default function InventoryWorksheet({ open, onClose, system, existingRepo
       title: 'Estimated Sold',
       disabled: true,
       basis: 120,
-      component: ({ rowData }) => <div className="px-2 text-sm text-gray-500">{rowData.estimatedSold ?? '—'}</div>,
+      component: ({ rowData }) => <div className="px-2 text-sm text-gray-700">{rowData.estimatedSold ?? '—'}</div>,
       copyValue: ({ rowData }) => rowData.estimatedSold ?? '',
     },
     {
@@ -239,11 +239,11 @@ export default function InventoryWorksheet({ open, onClose, system, existingRepo
       basis: 90,
       component: ({ rowData }) =>
         rowData.status === 'Low' ? (
-          <div className="px-2 text-sm font-medium text-amber-600 dark:text-amber-400">Low</div>
+          <div className="px-2 text-sm font-semibold text-amber-700">Low</div>
         ) : rowData.status === 'OK' ? (
-          <div className="px-2 text-sm text-gray-400">OK</div>
+          <div className="px-2 text-sm text-gray-600">OK</div>
         ) : (
-          <div className="px-2 text-sm text-gray-300">—</div>
+          <div className="px-2 text-sm text-gray-400">—</div>
         ),
       copyValue: ({ rowData }) => rowData.status,
     },
@@ -300,7 +300,10 @@ export default function InventoryWorksheet({ open, onClose, system, existingRepo
               Type into <strong>Added Stock</strong> and <strong>Remaining Stock</strong>. Everything else fills in automatically.
               Click a cell to edit, use Tab/Enter/arrow keys to move, and you can paste in a whole column at once.
             </p>
-            <div className="min-w-[700px]">
+            <div
+              className="min-w-[700px] rounded-lg border border-gray-300 dark:border-sage-700"
+              style={{ '--dsg-header-text-color': '#374151', '--dsg-header-active-text-color': '#111827' }}
+            >
               <DataSheetGrid
                 value={gridRows}
                 onChange={handleGridChange}
