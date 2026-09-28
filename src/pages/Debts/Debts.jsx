@@ -63,7 +63,7 @@ export default function Debts() {
   return (
     <div>
       <PageHeader
-        title={isFamily ? 'Loans and Credit Card' : 'My Debts & Loans'}
+        title={isFamily ? 'Loans and Credit Card' : 'Loans and Credit Cards'}
         subtitle="Money borrowed or lent, with automatic balance and payoff tracking"
         action={
           <div className="flex gap-2">

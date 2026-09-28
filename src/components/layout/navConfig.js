@@ -19,13 +19,13 @@ export const familyNav = [
 ]
 
 export const privateNav = [
-  { to: '/', label: 'My Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/transactions', label: 'My Transactions', icon: ArrowLeftRight },
-  { to: '/accounts', label: 'My Accounts', icon: Wallet },
-  { to: '/goals', label: 'My Goals', icon: Target },
-  { to: '/debts', label: 'My Debts', icon: Landmark },
-  { to: '/budgets', label: 'My Budgets', icon: PiggyBank },
-  { to: '/reports', label: 'My Reports', icon: FileBarChart },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/debts', label: 'Loans', icon: Landmark },
+  { to: '/budgets', label: 'Budgets', icon: PiggyBank },
+  { to: '/reports', label: 'Reports', icon: FileBarChart },
 ]
 
 export const globalBottomNav = [
