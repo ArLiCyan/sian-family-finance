@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
+import { useToast } from '../../contexts/ToastContext'
 import { getCategories, TRANSACTION_TYPE_LABELS } from '../../lib/api'
 import { getPresetRange, rangePresets } from '../../lib/dateRanges'
 import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
@@ -19,6 +20,7 @@ import { TrendingUp, TrendingDown, Scale } from 'lucide-react'
 export default function Reports() {
   const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
+  const { showToast } = useToast()
   const [preset, setPreset] = useState('this_month')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
@@ -76,18 +78,22 @@ export default function Reports() {
   function exportXls() {
     exportToXls(`${filenameBase}.xls`, reportHeaders, reportRows(), 'Report')
   }
-  function exportPdf() {
-    exportToPdf(`${filenameBase}.pdf`, {
-      title: isFamily ? 'SIAN Family Finance — Report' : 'My Finances — Report',
-      subtitle: `${range.start} to ${range.end}`,
-      headers: reportHeaders,
-      rows: reportRows(),
-      summary: [
-        `Income: ₱${income.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        `Expenses: ₱${expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        `Net: ₱${(income - expenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      ],
-    })
+  async function exportPdf() {
+    try {
+      await exportToPdf(`${filenameBase}.pdf`, {
+        title: isFamily ? 'SIAN Family Finance — Report' : 'My Finances — Report',
+        subtitle: `${range.start} to ${range.end}`,
+        headers: reportHeaders,
+        rows: reportRows(),
+        summary: [
+          `Income: ₱${income.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `Expenses: ₱${expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `Net: ₱${(income - expenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        ],
+      })
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
   }
 
   return (

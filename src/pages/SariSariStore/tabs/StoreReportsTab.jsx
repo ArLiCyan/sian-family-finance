@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { useToast } from '../../../contexts/ToastContext'
 import { exportToCsv, exportToXls, exportToPdf } from '../../../lib/exportUtils'
 import Card, { CardHeader } from '../../../components/ui/Card'
 import ExportMenu from '../../../components/ui/ExportMenu'
@@ -8,6 +9,7 @@ import ExportMenu from '../../../components/ui/ExportMenu'
 // per-system report history. Reuses the same export tooling as the site-wide
 // Reports and Projects pages.
 export default function StoreReportsTab({ family }) {
+  const { showToast } = useToast()
   const [loading, setLoading] = useState(false)
 
   async function fetchInventoryRows() {
@@ -67,6 +69,8 @@ export default function StoreReportsTab({ family }) {
     setLoading(true)
     try {
       await fn()
+    } catch (err) {
+      showToast(`Couldn't export: ${err.message}`)
     } finally {
       setLoading(false)
     }

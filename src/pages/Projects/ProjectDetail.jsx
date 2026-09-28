@@ -116,13 +116,17 @@ export default function ProjectDetail() {
     exportToXls(`${project.name}-report.xls`, exportHeaders, await buildExportRows(), project.name)
   }
   async function exportPdf() {
-    exportToPdf(`${project.name}-report.pdf`, {
-      title: `${project.name} — Project Report`,
-      subtitle: PROJECT_TYPES[project.project_type],
-      headers: exportHeaders,
-      rows: await buildExportRows(),
-      summary: exportSummary(),
-    })
+    try {
+      await exportToPdf(`${project.name}-report.pdf`, {
+        title: `${project.name} — Project Report`,
+        subtitle: PROJECT_TYPES[project.project_type],
+        headers: exportHeaders,
+        rows: await buildExportRows(),
+        summary: exportSummary(),
+      })
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
   }
 
   if (loading || !project) return <LoadingState label="Loading project…" />

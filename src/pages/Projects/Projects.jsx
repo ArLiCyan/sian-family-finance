@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, FolderKanban } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
 import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
 import PageHeader from '../../components/layout/PageHeader'
@@ -19,6 +20,7 @@ import { PROJECT_TYPES } from './ProjectForm'
 
 export default function Projects() {
   const { family } = useAuth()
+  const { showToast } = useToast()
   const [projects, setProjects] = useState([])
   const [summaries, setSummaries] = useState({})
   const [loading, setLoading] = useState(true)
@@ -78,12 +80,16 @@ export default function Projects() {
   function exportXls() {
     exportToXls('sian-family-projects.xls', exportHeaders, exportRows(), 'Projects')
   }
-  function exportPdf() {
-    exportToPdf('sian-family-projects.pdf', {
-      title: 'SIAN Family Finance — Projects',
-      headers: exportHeaders,
-      rows: exportRows(),
-    })
+  async function exportPdf() {
+    try {
+      await exportToPdf('sian-family-projects.pdf', {
+        title: 'SIAN Family Finance — Projects',
+        headers: exportHeaders,
+        rows: exportRows(),
+      })
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
   }
 
   return (
