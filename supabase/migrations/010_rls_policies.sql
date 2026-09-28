@@ -372,14 +372,14 @@ create policy debt_payments_insert on debt_payments for insert
     and exists (
       select 1 from debts d where d.id = debt_payments.debt_id
       and ((d.scope = 'private' and d.owner_profile_id = current_profile_id())
-        or (d.scope = 'family' and is_family_admin(d.family_id)))
+        or (d.scope = 'family' and is_family_member(d.family_id)))
     )
   );
 create policy debt_payments_delete on debt_payments for delete
   using (exists (
     select 1 from debts d where d.id = debt_payments.debt_id
     and ((d.scope = 'private' and d.owner_profile_id = current_profile_id())
-      or (d.scope = 'family' and is_family_admin(d.family_id)))
+      or (d.scope = 'family' and is_family_member(d.family_id)))
   ));
 
 -- ================= budgets =================
@@ -395,22 +395,22 @@ create policy budgets_insert on budgets for insert
     created_by = current_profile_id()
     and (
       (scope = 'private' and owner_profile_id = current_profile_id())
-      or (scope = 'family' and is_family_admin(family_id))
+      or (scope = 'family' and is_family_member(family_id))
     )
   );
 create policy budgets_update on budgets for update
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   )
   with check (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 create policy budgets_delete on budgets for delete
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 
 -- ================= budget_categories =================
@@ -426,19 +426,19 @@ create policy budget_categories_insert on budget_categories for insert
   with check (exists (
     select 1 from budgets b where b.id = budget_categories.budget_id
     and ((b.scope = 'private' and b.owner_profile_id = current_profile_id())
-      or (b.scope = 'family' and is_family_admin(b.family_id)))
+      or (b.scope = 'family' and is_family_member(b.family_id)))
   ));
 create policy budget_categories_update on budget_categories for update
   using (exists (
     select 1 from budgets b where b.id = budget_categories.budget_id
     and ((b.scope = 'private' and b.owner_profile_id = current_profile_id())
-      or (b.scope = 'family' and is_family_admin(b.family_id)))
+      or (b.scope = 'family' and is_family_member(b.family_id)))
   ));
 create policy budget_categories_delete on budget_categories for delete
   using (exists (
     select 1 from budgets b where b.id = budget_categories.budget_id
     and ((b.scope = 'private' and b.owner_profile_id = current_profile_id())
-      or (b.scope = 'family' and is_family_admin(b.family_id)))
+      or (b.scope = 'family' and is_family_member(b.family_id)))
   ));
 
 -- ================= recurring_transactions =================
@@ -454,22 +454,22 @@ create policy recurring_insert on recurring_transactions for insert
     created_by = current_profile_id()
     and (
       (scope = 'private' and owner_profile_id = current_profile_id())
-      or (scope = 'family' and is_family_admin(family_id))
+      or (scope = 'family' and is_family_member(family_id))
     )
   );
 create policy recurring_update on recurring_transactions for update
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   )
   with check (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 create policy recurring_delete on recurring_transactions for delete
   using (
     (scope = 'private' and owner_profile_id = current_profile_id())
-    or (scope = 'family' and is_family_admin(family_id))
+    or (scope = 'family' and is_family_member(family_id))
   );
 
 -- ================= notifications =================

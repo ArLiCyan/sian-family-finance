@@ -16,12 +16,11 @@ import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
 import { getPresetRange } from '../../lib/dateRanges'
 
 export default function Budgets() {
-  const { profile, family, role } = useAuth()
+  const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
   const [budgets, setBudgets] = useState([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
-  const canManage = !isFamily || role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -58,13 +57,13 @@ export default function Budgets() {
       <PageHeader
         title={isFamily ? 'Family Budgets' : 'My Budgets'}
         subtitle="Set spending limits by category and track progress"
-        action={canManage && <Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> New Budget</Button>}
+        action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> New Budget</Button>}
       />
 
       {loading ? (
         <LoadingState />
       ) : budgets.length === 0 ? (
-        <EmptyState icon={PiggyBank} title="No budgets yet" message="Create a budget like Food ₱15,000/month to track spending." action={canManage && <Button onClick={() => setFormOpen(true)}>Create Budget</Button>} />
+        <EmptyState icon={PiggyBank} title="No budgets yet" message="Create a budget like Food ₱15,000/month to track spending." action={<Button onClick={() => setFormOpen(true)}>Create Budget</Button>} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {budgets.map((b) => {
