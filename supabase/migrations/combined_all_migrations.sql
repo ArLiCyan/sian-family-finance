@@ -1672,10 +1672,10 @@ select
   coalesce(contrib.pending_total, 0) as pending_total,
   coalesce(contrib.confirmed_total, 0) as confirmed_total,
   coalesce(exp.expense_total, 0) as expense_total,
-  greatest(coalesce(req.expected_total, 0) - coalesce(contrib.confirmed_total, 0), 0) as unfunded_amount,
+  greatest(p.budget - coalesce(contrib.confirmed_total, 0), 0) as unfunded_amount,
   p.budget - coalesce(exp.expense_total, 0) as remaining_budget,
-  case when coalesce(req.expected_total, 0) > 0
-    then round(coalesce(contrib.confirmed_total, 0) / req.expected_total * 100, 2)
+  case when p.budget > 0
+    then round(coalesce(contrib.confirmed_total, 0) / p.budget * 100, 2)
     else 0 end as funding_percentage,
   case when p.budget > 0
     then round(coalesce(exp.expense_total, 0) / p.budget * 100, 2)
