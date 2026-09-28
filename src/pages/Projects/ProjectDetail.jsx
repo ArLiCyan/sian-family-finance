@@ -96,7 +96,7 @@ export default function ProjectDetail() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
           <div>
             <p className="text-xs uppercase text-gray-400">Proposed Budget</p>
             <p className="font-semibold text-gray-900 dark:text-gray-100"><CurrencyDisplay amount={project.budget} /></p>
@@ -106,26 +106,32 @@ export default function ProjectDetail() {
             <p className="font-semibold text-green-600 dark:text-green-400"><CurrencyDisplay amount={summary?.confirmed_total ?? 0} /></p>
           </div>
           <div>
+            <p className="text-xs uppercase text-gray-400">Funding Still Needed</p>
+            <p className="font-semibold text-amber-600 dark:text-amber-400"><CurrencyDisplay amount={summary?.unfunded_amount ?? 0} /></p>
+          </div>
+          <div>
             <p className="text-xs uppercase text-gray-400">Total Spent</p>
             <p className="font-semibold text-red-600 dark:text-red-400"><CurrencyDisplay amount={summary?.expense_total ?? 0} /></p>
           </div>
           <div>
-            <p className="text-xs uppercase text-gray-400">Budget Left</p>
-            <p className="font-semibold text-gray-900 dark:text-gray-100"><CurrencyDisplay amount={summary?.remaining_budget ?? 0} /></p>
+            <p className="text-xs uppercase text-gray-400">Money Available</p>
+            <p className="font-semibold text-sage-600 dark:text-sage-400">
+              <CurrencyDisplay amount={(summary?.confirmed_total ?? 0) - (summary?.expense_total ?? 0)} />
+            </p>
           </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Contributions raised</span>
+              <span>Funding Progress</span>
               <span>{(summary?.funding_percentage ?? 0).toFixed(1)}%</span>
             </div>
             <ProgressBar percent={summary?.funding_percentage ?? 0} tone="green" />
           </div>
           <div>
             <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Budget spent</span>
+              <span>Budget Spent</span>
               <span>{(summary?.spending_percentage ?? 0).toFixed(1)}%</span>
             </div>
             <ProgressBar percent={summary?.spending_percentage ?? 0} tone={summary?.spending_percentage > 90 ? 'red' : 'navy'} />
