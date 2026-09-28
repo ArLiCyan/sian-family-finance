@@ -70,7 +70,7 @@ export default function ReportsPanel({ system, canManage }) {
       </Card>
 
       <CreateReportModal open={createOpen} onClose={() => setCreateOpen(false)} system={system} onSaved={load} />
-      <ReportDetailModal reportId={viewingId} onClose={() => setViewingId(null)} />
+      <ReportDetailModal reportId={viewingId} system={system} canManage={canManage} onClose={() => setViewingId(null)} onChanged={load} />
     </div>
   )
 }
