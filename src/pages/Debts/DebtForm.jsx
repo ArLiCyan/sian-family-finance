@@ -33,6 +33,8 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
   const [restoredDraft, setRestoredDraft] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [interestMode, setInterestMode] = useState('amount') // 'amount' | 'percent'
+  const [interestPercent, setInterestPercent] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -53,6 +55,8 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       })
       setHistoricalPayments([])
       setRestoredDraft(false)
+      setInterestMode('amount')
+      setInterestPercent('')
       setError('')
       return
     }
@@ -69,6 +73,8 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       setHistoricalPayments([])
       setRestoredDraft(false)
     }
+    setInterestMode('amount')
+    setInterestPercent('')
     setError('')
   }, [open, initial])
 
@@ -95,6 +101,18 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
   }
+
+  // In percent mode, Interest is derived from Principal — a one-time
+  // percentage, not a compounding monthly rate (a 4.95%/month loan run for
+  // 12 months owes far more than 4.95% of principal in total interest; for
+  // those, use the total-interest figure the lender already discloses).
+  useEffect(() => {
+    if (interestMode !== 'percent') return
+    const principal = Number(form.principal_amount) || 0
+    const pct = Number(interestPercent) || 0
+    update('interest_amount', principal > 0 && pct > 0 ? (principal * (pct / 100)).toFixed(2) : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interestMode, interestPercent, form.principal_amount])
 
   function updatePayment(i, field, value) {
     setHistoricalPayments((rows) => rows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
@@ -231,13 +249,48 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
             <Field label="Principal">
               <Input type="number" min="0" step="0.01" value={form.principal_amount} onChange={(e) => update('principal_amount', e.target.value)} />
             </Field>
-            <Field label="Interest">
-              <Input type="number" min="0" step="0.01" value={form.interest_amount} onChange={(e) => update('interest_amount', e.target.value)} />
+            <Field
+              label={
+                <span className="flex items-center justify-between">
+                  Interest
+                  <button
+                    type="button"
+                    onClick={() => setInterestMode((m) => (m === 'amount' ? 'percent' : 'amount'))}
+                    className="text-[11px] font-normal text-sage-600 hover:underline dark:text-sage-400"
+                  >
+                    {interestMode === 'amount' ? 'Use %' : 'Use ₱'}
+                  </button>
+                </span>
+              }
+            >
+              {interestMode === 'percent' ? (
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="% of Principal"
+                  value={interestPercent}
+                  onChange={(e) => setInterestPercent(e.target.value)}
+                />
+              ) : (
+                <Input type="number" min="0" step="0.01" value={form.interest_amount} onChange={(e) => update('interest_amount', e.target.value)} />
+              )}
             </Field>
             <Field label="Fees">
               <Input type="number" min="0" step="0.01" value={form.fees_amount} onChange={(e) => update('fees_amount', e.target.value)} />
             </Field>
           </div>
+          {interestMode === 'percent' && (
+            <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
+              {Number(form.principal_amount) > 0 ? (
+                <>= ₱{(Number(form.interest_amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} interest.</>
+              ) : (
+                'Enter Principal above first.'
+              )}{' '}
+              This is a one-time % of Principal, not a compounding monthly rate — for a loan quoted as "X% per month," use the total interest
+              figure from your loan statement instead (switch back to "Use ₱").
+            </p>
+          )}
           {breakdownSum > 0 && (
             <div className="mt-1 flex items-center justify-between text-xs">
               <span className="text-gray-500 dark:text-gray-400">
