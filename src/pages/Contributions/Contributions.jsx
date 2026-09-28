@@ -16,13 +16,11 @@ import { formatDateShort } from '../../lib/format'
 const STATUS_OPTIONS = ['pending', 'submitted', 'confirmed', 'partially_confirmed', 'rejected', 'refunded']
 
 export default function Contributions() {
-  const { profile, family, role } = useAuth()
+  const { profile, family } = useAuth()
   const { showToast } = useToast()
   const [contributions, setContributions] = useState([])
-  const [myProjectRoles, setMyProjectRoles] = useState({})
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
-  const isFamilyAdmin = role === 'owner' || role === 'admin'
 
   const load = useCallback(async () => {
     if (!family || !profile) return
@@ -35,18 +33,6 @@ export default function Contributions() {
     if (statusFilter) query = query.eq('status', statusFilter)
     const { data } = await query
     setContributions(data ?? [])
-
-    const projectIds = [...new Set((data ?? []).map((c) => c.projects?.id).filter(Boolean))]
-    if (projectIds.length > 0) {
-      const { data: memberships } = await supabase
-        .from('project_members')
-        .select('project_id, role, can_approve_contributions')
-        .eq('profile_id', profile.id)
-        .in('project_id', projectIds)
-      setMyProjectRoles(Object.fromEntries((memberships ?? []).map((m) => [m.project_id, m])))
-    } else {
-      setMyProjectRoles({})
-    }
     setLoading(false)
   }, [family, profile, statusFilter])
 
@@ -54,15 +40,9 @@ export default function Contributions() {
     load()
   }, [load])
 
-  // A contribution can be approved by a family Admin/Owner, or by anyone
-  // holding "Can approve" on that specific project — matching the same rule
-  // enforced by the database, so this never shows a button that would fail.
-  function canApprove(c) {
-    if (isFamilyAdmin) return true
-    const membership = myProjectRoles[c.projects?.id]
-    return membership?.role === 'owner' || !!membership?.can_approve_contributions
-  }
-
+  // Any family member may confirm/reject anyone else's contribution — a
+  // trusted-family policy, not gated by role or project membership. The
+  // database independently blocks verifying your own, regardless of role.
   async function verify(c, status) {
     const { error } = await supabase
       .from('project_contributions')
@@ -117,7 +97,7 @@ export default function Contributions() {
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
                     <td className="py-2.5 pr-3"><StatusBadge status={c.status} /></td>
                     <td className="py-2.5 pl-3 text-right">
-                      {canApprove(c) && c.status === 'pending' && c.profile_id !== profile.id && (
+                      {c.status === 'pending' && c.profile_id !== profile.id && (
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => verify(c, 'confirmed')} className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30">
                             <Check className="h-4 w-4" />

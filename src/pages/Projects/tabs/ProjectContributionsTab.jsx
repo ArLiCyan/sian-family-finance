@@ -83,7 +83,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
                     <td className="py-2.5 pr-3"><StatusBadge status={c.status} /></td>
                     <td className="py-2.5 pl-3 text-right">
-                      {canManage && c.status === 'pending' && c.profile_id !== profile.id && (
+                      {c.status === 'pending' && c.profile_id !== profile.id && (
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => setVerifying({ contribution: c, action: 'confirm' })} className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30">
                             <Check className="h-4 w-4" />
