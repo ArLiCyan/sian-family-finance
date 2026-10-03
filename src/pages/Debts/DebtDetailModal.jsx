@@ -101,31 +101,10 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
             <ProgressBar percent={percentPaid} tone={percentPaid >= 100 ? 'green' : 'navy'} />
           </div>
 
-          {canSettle && (
+          {debt.notes?.trim() && (
             <div className="mb-5 rounded-lg border border-sage-200 dark:border-sage-800 bg-sage-50 dark:bg-sage-900/40 p-3">
-              {projection?.months_remaining != null ? (
-                <>
-                  <p className="text-sm font-medium text-sage-900 dark:text-sage-100">
-                    {projection.months_remaining === 0
-                      ? "This is fully paid off with the last recorded payment."
-                      : `${projection.months_remaining} more month${projection.months_remaining === 1 ? '' : 's'} to pay it off`}
-                  </p>
-                  {projection.projected_payoff_date && (
-                    <p className="mt-0.5 text-xs text-sage-700 dark:text-sage-300">
-                      Projected payoff: {formatDate(projection.projected_payoff_date)}
-                    </p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    At <CurrencyDisplay amount={projection.effective_monthly_rate} />/month
-                    {projection.is_estimated_rate ? ' (estimated from your payment history)' : ' (your set monthly payment)'}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Not enough information yet to estimate months remaining. Set an expected monthly payment (Edit), or record at
-                  least one payment so it can be estimated from your pace.
-                </p>
-              )}
+              <p className="mb-1 text-xs font-medium uppercase text-sage-700 dark:text-sage-300">Notes</p>
+              <p className="whitespace-pre-line text-sm text-sage-900 dark:text-sage-100">{debt.notes}</p>
             </div>
           )}
 
