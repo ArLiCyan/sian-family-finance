@@ -16,7 +16,6 @@ import Transactions from './pages/Transactions/Transactions'
 import Accounts from './pages/Accounts/Accounts'
 import Projects from './pages/Projects/Projects'
 import ProjectDetail from './pages/Projects/ProjectDetail'
-import Goals from './pages/Goals/Goals'
 import Debts from './pages/Debts/Debts'
 import Budgets from './pages/Budgets/Budgets'
 import SariSariStore from './pages/SariSariStore/SariSariStore'
@@ -52,7 +51,7 @@ export default function App() {
               <Route path="/contributions" element={<Navigate to="/projects" replace />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/goals" element={<Goals />} />
+              <Route path="/goals" element={<Navigate to="/" replace />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="/budgets" element={<Budgets />} />
               <Route path="/sari-sari-store" element={<SariSariStore />} />
