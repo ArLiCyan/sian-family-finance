@@ -104,9 +104,9 @@ export default function ProjectDetail() {
   }
 
   const exportSummary = () => [
-    `Proposed Budget: ₱${Number(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-    `Total Contributions: ₱${Number(summary?.confirmed_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-    `Total Spent: ₱${Number(summary?.expense_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    `Proposed Budget: PHP ${Number(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    `Total Contributions: PHP ${Number(summary?.confirmed_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    `Total Spent: PHP ${Number(summary?.expense_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
   ]
 
   async function exportCsv() {

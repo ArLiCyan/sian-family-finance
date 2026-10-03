@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Pencil, CircleDollarSign, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../contexts/ToastContext'
+import { exportDocumentToPdf, exportDocumentToXls } from '../../lib/exportUtils'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import ExportMenu from '../../components/ui/ExportMenu'
 import Tabs from '../../components/ui/Tabs'
 import Badge from '../../components/ui/Badge'
 import LoadingState from '../../components/ui/LoadingState'
@@ -17,6 +20,7 @@ const INSTALLMENT_STATUS_COLOR = { paid: 'green', partial: 'blue', overdue: 'red
 const INSTALLMENT_STATUS_LABEL = { paid: 'Paid', partial: 'Partial', overdue: 'Overdue', upcoming: 'Upcoming' }
 
 export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete }) {
+  const { showToast } = useToast()
   const [projection, setProjection] = useState(null)
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +46,71 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
   const schedule = useMemo(() => (debt ? computeInstallmentSchedule(debt, payments) : null), [debt, payments])
 
   if (!debt) return null
+
+  // Builds the whole screen's content as a printable record: the summary
+  // figures, notes, the due-date schedule (if the loan has one), and every
+  // payment. `symbol` is "PHP " for PDFs (no peso glyph in jsPDF's fonts).
+  function buildReport(symbol) {
+    const money = (n) => `${symbol}${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const titleCase = (s) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+    const details = [
+      [debt.direction === 'borrowed' ? 'Borrowed from' : 'Lent to', debt.counterparty_name],
+      ['Status', titleCase(debt.status)],
+      ['Start date', debt.start_date ? formatDate(debt.start_date) : '—'],
+      ['Due date', debt.due_date ? formatDate(debt.due_date) : '—'],
+      ['Monthly due day', debt.due_day_of_month ? `Every ${debt.due_day_of_month}` : '—'],
+      ['Expected monthly payment', debt.installment_amount ? money(debt.installment_amount) : '—'],
+      ['Original amount', money(original)],
+      ...(debt.principal_amount != null ? [['  Principal', money(debt.principal_amount)]] : []),
+      ...(debt.interest_amount != null ? [['  Interest', money(debt.interest_amount)]] : []),
+      ...(debt.fees_amount != null ? [['  Fees', money(debt.fees_amount)]] : []),
+      ['Paid so far', money(totalPaid)],
+      ['Remaining', money(remaining)],
+      ['Progress', `${percentPaid.toFixed(0)}% paid`],
+      ...(debt.notes?.trim() ? [['Notes', debt.notes.trim()]] : []),
+    ]
+
+    const sections = []
+    if (schedule?.installments) {
+      sections.push({
+        title: 'Installment Schedule',
+        headers: ['#', 'Due Date', 'Expected', 'Status', 'Paid Date'],
+        rows: schedule.installments.map((i) => [
+          i.number,
+          formatDate(i.dueDate),
+          money(i.expected),
+          INSTALLMENT_STATUS_LABEL[i.status],
+          i.paidDate ? formatDate(i.paidDate) : '—',
+        ]),
+      })
+    }
+    sections.push({
+      title: 'Payment History',
+      headers: ['Date', 'Amount', 'Notes'],
+      rows: payments.map((p) => [formatDate(p.date), money(p.amount), p.notes ?? '']),
+    })
+
+    return { title: debt.counterparty_name, subtitle: `Loan record — printed ${formatDate(new Date().toISOString().slice(0, 10))}`, details, sections }
+  }
+
+  const exportName = debt.counterparty_name.replace(/[\\/:*?"<>|]/g, '-')
+
+  async function exportPdf() {
+    try {
+      await exportDocumentToPdf(`${exportName}-loan.pdf`, buildReport('PHP '))
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
+  }
+
+  function exportXls() {
+    try {
+      exportDocumentToXls(`${exportName}-loan.xls`, buildReport('₱'))
+    } catch (err) {
+      showToast(`Couldn't create the Excel file: ${err.message}`)
+    }
+  }
 
   const hasBreakdown = debt.principal_amount != null || debt.interest_amount != null || debt.fees_amount != null
 
@@ -108,9 +177,10 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
             </div>
           )}
 
-          <div className="mb-1 flex justify-between items-center">
+          <div className="mb-1 flex flex-wrap justify-between items-center gap-2">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Payments</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <ExportMenu size="sm" onXls={exportXls} onPdf={exportPdf} />
               <Button size="sm" variant="outline" onClick={() => onEdit(debt)}>
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>

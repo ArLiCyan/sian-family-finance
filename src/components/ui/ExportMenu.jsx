@@ -3,8 +3,9 @@ import { Download, FileText, FileSpreadsheet, FileType } from 'lucide-react'
 import Button from './Button'
 
 // A small "Export" dropdown offering CSV / Excel / PDF, sharing one trigger
-// button so pages don't need three separate buttons side by side.
-export default function ExportMenu({ onCsv, onXls, onPdf, disabled, label = 'Export' }) {
+// button so pages don't need three separate buttons side by side. Pass only
+// the handlers you want — formats without a handler are left out of the menu.
+export default function ExportMenu({ onCsv, onXls, onPdf, disabled, label = 'Export', size = 'md' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -21,31 +22,31 @@ export default function ExportMenu({ onCsv, onXls, onPdf, disabled, label = 'Exp
     fn?.()
   }
 
+  const itemClass =
+    'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-sage-800'
+
   return (
     <div className="relative inline-block" ref={ref}>
-      <Button variant="outline" disabled={disabled} onClick={() => setOpen((o) => !o)}>
+      <Button variant="outline" size={size} disabled={disabled} onClick={() => setOpen((o) => !o)}>
         <Download className="h-4 w-4" /> {label}
       </Button>
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-sage-700 dark:bg-sage-900">
-          <button
-            onClick={() => pick(onCsv)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-sage-800"
-          >
-            <FileText className="h-4 w-4 text-gray-400" /> CSV
-          </button>
-          <button
-            onClick={() => pick(onXls)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-sage-800"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-gray-400" /> Excel (.xls)
-          </button>
-          <button
-            onClick={() => pick(onPdf)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-sage-800"
-          >
-            <FileType className="h-4 w-4 text-gray-400" /> PDF
-          </button>
+          {onCsv && (
+            <button onClick={() => pick(onCsv)} className={itemClass}>
+              <FileText className="h-4 w-4 text-gray-400" /> CSV
+            </button>
+          )}
+          {onXls && (
+            <button onClick={() => pick(onXls)} className={itemClass}>
+              <FileSpreadsheet className="h-4 w-4 text-gray-400" /> Excel (.xls)
+            </button>
+          )}
+          {onPdf && (
+            <button onClick={() => pick(onPdf)} className={itemClass}>
+              <FileType className="h-4 w-4 text-gray-400" /> PDF
+            </button>
+          )}
         </div>
       )}
     </div>

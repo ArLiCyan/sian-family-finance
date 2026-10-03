@@ -66,3 +66,79 @@ export async function exportToPdf(filename, { title, subtitle, headers, rows, su
   })
   doc.save(filename)
 }
+
+// A one-record "printout": a title, a label/value details block, then any
+// number of titled tables (e.g. a loan's schedule and payment history).
+//   details:  [label, value][]
+//   sections: { title, headers, rows }[]
+// Callers should format money as plain text like "PHP 1,000.00" for the PDF —
+// jsPDF's built-in fonts have no peso sign, so "₱" prints as a wrong glyph.
+export async function exportDocumentToPdf(filename, { title, subtitle, details = [], sections = [] }) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
+  const doc = new jsPDF({ orientation: 'portrait' })
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  doc.setFontSize(16)
+  doc.setTextColor(30)
+  doc.text(title, 14, 16)
+  let y = 22
+  if (subtitle) {
+    doc.setFontSize(10)
+    doc.setTextColor(120)
+    doc.text(subtitle, 14, y)
+    y += 4
+  }
+
+  if (details.length) {
+    autoTable(doc, {
+      startY: y + 2,
+      body: details.map(([label, value]) => [label, String(value ?? '—')]),
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 1.5, textColor: 30 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } },
+    })
+    y = doc.lastAutoTable.finalY
+  }
+
+  for (const section of sections) {
+    if (y > pageHeight - 40) {
+      doc.addPage()
+      y = 16
+    }
+    doc.setFontSize(12)
+    doc.setTextColor(30)
+    doc.text(section.title, 14, y + 10)
+    autoTable(doc, {
+      startY: y + 13,
+      head: [section.headers],
+      body: section.rows.length ? section.rows : [[{ content: 'Nothing recorded yet', colSpan: section.headers.length, styles: { halign: 'center', textColor: 140 } }]],
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [61, 95, 146] },
+    })
+    y = doc.lastAutoTable.finalY
+  }
+
+  doc.save(filename)
+}
+
+export function exportDocumentToXls(filename, { title, subtitle, details = [], sections = [] }) {
+  const esc = (v) =>
+    String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+  const detailsHtml = details.length
+    ? `<table>${details.map(([l, v]) => `<tr><td><b>${esc(l)}</b></td><td>${esc(v ?? '—')}</td></tr>`).join('')}</table>`
+    : ''
+  const sectionsHtml = sections
+    .map(
+      (s) => `<br/><h3>${esc(s.title)}</h3><table border="1">
+        <tr>${s.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>
+        ${s.rows.length ? s.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${s.headers.length}">Nothing recorded yet</td></tr>`}
+      </table>`
+    )
+    .join('')
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>
+    <h2>${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}${detailsHtml}${sectionsHtml}</body></html>`
+  downloadBlob(new Blob([html], { type: 'application/vnd.ms-excel' }), filename)
+}

@@ -86,9 +86,9 @@ export default function Reports() {
         headers: reportHeaders,
         rows: reportRows(),
         summary: [
-          `Income: ₱${income.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-          `Expenses: ₱${expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-          `Net: ₱${(income - expenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `Income: PHP ${income.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `Expenses: PHP ${expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+          `Net: PHP ${(income - expenses).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         ],
       })
     } catch (err) {
