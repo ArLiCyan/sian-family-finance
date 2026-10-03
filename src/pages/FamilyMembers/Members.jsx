@@ -18,7 +18,7 @@ export default function Members() {
   const [members, setMembers] = useState([])
   const [summaries, setSummaries] = useState({})
   const [loading, setLoading] = useState(true)
-  const isOwner = myRole === 'owner'
+  const canChangeRoles = myRole === 'owner' || myRole === 'admin'
 
   const load = useCallback(async () => {
     if (!family) return
@@ -77,7 +77,7 @@ export default function Members() {
                 </div>
               </div>
 
-              {isOwner && m.role !== 'owner' ? (
+              {canChangeRoles && m.role !== 'owner' ? (
                 <Select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)} className="mb-3 w-32">
                   <option value="admin">Admin</option>
                   <option value="member">Member</option>

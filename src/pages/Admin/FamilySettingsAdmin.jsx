@@ -12,7 +12,7 @@ export default function FamilySettingsAdmin() {
   const [form, setForm] = useState({ name: '', currency: 'PHP', timezone: 'Asia/Manila' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const readOnly = role !== 'owner'
+  const readOnly = role !== 'owner' && role !== 'admin'
 
   useEffect(() => {
     if (family) setForm({ name: family.name, currency: family.currency, timezone: family.timezone })
@@ -54,7 +54,7 @@ export default function FamilySettingsAdmin() {
             {saved ? 'Saved!' : 'Save Changes'}
           </Button>
         )}
-        {readOnly && <p className="text-xs text-gray-400">Only the Family Owner can change these settings.</p>}
+        {readOnly && <p className="text-xs text-gray-400">Only the Family Owner or an Admin can change these settings.</p>}
       </form>
     </Card>
   )

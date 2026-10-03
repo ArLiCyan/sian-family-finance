@@ -9,7 +9,8 @@ import LoadingState from '../../../components/ui/LoadingState'
 import { formatDateShort } from '../../../lib/format'
 
 export default function ProjectDocumentsTab({ project }) {
-  const { profile, family } = useAuth()
+  const { profile, family, role } = useAuth()
+  const isAdmin = role === 'owner' || role === 'admin'
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -67,7 +68,7 @@ export default function ProjectDocumentsTab({ project }) {
                     <p className="text-xs text-gray-400">{formatDateShort(f.created_at)} · {(f.size_bytes / 1024).toFixed(0)} KB</p>
                   </div>
                 </button>
-                {f.uploaded_by === profile.id && (
+                {(f.uploaded_by === profile.id || isAdmin) && (
                   <button onClick={() => remove(f.id)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
