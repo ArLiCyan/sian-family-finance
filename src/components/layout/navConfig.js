@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, ArrowLeftRight, Wallet, HandCoins, FolderKanban, Target,
+  LayoutDashboard, ArrowLeftRight, Wallet, FolderKanban, Target,
   Landmark, PiggyBank, FileBarChart, Users, Megaphone, Shield, Settings, Store,
 } from 'lucide-react'
 
@@ -7,9 +7,7 @@ export const familyNav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/accounts', label: 'Accounts', icon: Wallet },
-  { to: '/contributions', label: 'Contributions', icon: HandCoins },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/goals', label: 'Goals', icon: Target },
   { to: '/debts', label: 'Loan', icon: Landmark },
   { to: '/budgets', label: 'Budgets', icon: PiggyBank },
   { to: '/sari-sari-store', label: 'InvenTrack', icon: Store },

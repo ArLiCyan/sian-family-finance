@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { FinanceModeProvider } from './contexts/FinanceModeContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -14,7 +14,6 @@ import ResetPassword from './pages/Auth/ResetPassword'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transactions from './pages/Transactions/Transactions'
 import Accounts from './pages/Accounts/Accounts'
-import Contributions from './pages/Contributions/Contributions'
 import Projects from './pages/Projects/Projects'
 import ProjectDetail from './pages/Projects/ProjectDetail'
 import Goals from './pages/Goals/Goals'
@@ -50,7 +49,7 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/accounts" element={<Accounts />} />
-              <Route path="/contributions" element={<Contributions />} />
+              <Route path="/contributions" element={<Navigate to="/projects" replace />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/goals" element={<Goals />} />
