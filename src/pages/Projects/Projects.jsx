@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, FolderKanban } from 'lucide-react'
+import { Plus, FolderKanban, Archive, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
@@ -15,16 +15,22 @@ import EmptyState from '../../components/ui/EmptyState'
 import { StatusBadge, projectStatusColor } from '../../components/ui/Badge'
 import ProgressBar from '../../components/financial/ProgressBar'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import ProjectForm from './ProjectForm'
+import ProjectShelfModal, { PROJECT_TRASH_DAYS } from './ProjectShelfModal'
 import { PROJECT_TYPES } from './ProjectForm'
 
 export default function Projects() {
-  const { family } = useAuth()
+  const { family, profile, role } = useAuth()
   const { showToast } = useToast()
   const [projects, setProjects] = useState([])
   const [summaries, setSummaries] = useState({})
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
+  const [myManaged, setMyManaged] = useState(new Set())
+  const [archiving, setArchiving] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [shelf, setShelf] = useState(null) // 'archived' | 'trash' | null
 
   const load = useCallback(async () => {
     if (!family) return
@@ -34,15 +40,21 @@ export default function Projects() {
       .select('*')
       .eq('family_id', family.id)
       .is('deleted_at', null)
+      .is('archived_at', null)
       .order('created_at', { ascending: false })
     setProjects(data ?? [])
+
+    if (profile) {
+      const { data: mine } = await supabase.from('project_members').select('project_id, role, can_approve_contributions, can_manage_expenses').eq('profile_id', profile.id)
+      setMyManaged(new Set((mine ?? []).filter((m) => m.role === 'owner' || m.can_approve_contributions || m.can_manage_expenses).map((m) => m.project_id)))
+    }
 
     if (data?.length) {
       const { data: sums } = await supabase.from('project_financial_summary').select('*').in('project_id', data.map((p) => p.id))
       setSummaries(Object.fromEntries((sums ?? []).map((s) => [s.project_id, s])))
     }
     setLoading(false)
-  }, [family])
+  }, [family, profile])
 
   useEffect(() => {
     load()
@@ -92,6 +104,31 @@ export default function Projects() {
     }
   }
 
+  // Matches the database rule (can_manage_project): a project owner/manager or a family admin.
+  const canManage = (p) => role === 'owner' || role === 'admin' || myManaged.has(p.id)
+
+  async function handleArchive() {
+    const project = archiving
+    setArchiving(null)
+    const { error } = await supabase.from('projects').update({ archived_at: new Date().toISOString(), archived_by: profile.id }).eq('id', project.id)
+    if (error) {
+      showToast(`Couldn't archive: ${error.message}`)
+      return
+    }
+    load()
+  }
+
+  async function handleDelete() {
+    const project = deleting
+    setDeleting(null)
+    const { error } = await supabase.from('projects').update({ deleted_at: new Date().toISOString(), deleted_by: profile.id }).eq('id', project.id)
+    if (error) {
+      showToast(`Couldn't delete: ${error.message}`)
+      return
+    }
+    load()
+  }
+
   return (
     <div>
       <PageHeader
@@ -100,6 +137,12 @@ export default function Projects() {
         action={
           <div className="flex items-center gap-2">
             <ExportMenu onCsv={exportCsv} onXls={exportXls} onPdf={exportPdf} disabled={projects.length === 0} />
+            <Button variant="outline" onClick={() => setShelf('archived')}>
+              <Archive className="h-4 w-4" /> Archived
+            </Button>
+            <Button variant="outline" onClick={() => setShelf('trash')}>
+              <Trash2 className="h-4 w-4" /> Trash
+            </Button>
             <Button onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4" /> New Project
             </Button>
@@ -121,7 +164,8 @@ export default function Projects() {
           {projects.map((p) => {
             const s = summaries[p.id]
             return (
-              <Link key={p.id} to={`/projects/${p.id}`}>
+              <div key={p.id} className="relative">
+              <Link to={`/projects/${p.id}`}>
                 <Card className="h-full hover:border-sage-300 dark:hover:border-sage-600 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <p className="font-semibold text-gray-900 dark:text-gray-100">{p.name}</p>
@@ -140,12 +184,49 @@ export default function Projects() {
                   <p className="mt-1 text-xs text-gray-400">{(s?.spending_percentage ?? 0).toFixed(1)}% spent · {(s?.funding_percentage ?? 0).toFixed(1)}% funded</p>
                 </Card>
               </Link>
+              {canManage(p) && (
+                <div className="absolute bottom-3 right-3 flex gap-1">
+                  <button
+                    title="Archive"
+                    onClick={() => setArchiving(p)}
+                    className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-sage-800 dark:hover:text-gray-200"
+                  >
+                    <Archive className="h-4 w-4" />
+                  </button>
+                  <button
+                    title="Delete"
+                    onClick={() => setDeleting(p)}
+                    className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              </div>
             )
           })}
         </div>
       )}
 
       <ProjectForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={load} />
+      <ProjectShelfModal open={!!shelf} mode={shelf ?? 'archived'} onClose={() => setShelf(null)} canManage={canManage} onRestored={load} />
+      <ConfirmDialog
+        open={!!archiving}
+        onClose={() => setArchiving(null)}
+        onConfirm={handleArchive}
+        title="Archive this project?"
+        message={`"${archiving?.name}" will be hidden from this list but keeps all its contributions, expenses and history. You can unarchive it any time from the Archived button.`}
+        confirmLabel="Archive"
+        variant="primary"
+      />
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={handleDelete}
+        title="Move to Trash?"
+        message={`"${deleting?.name}" moves to Trash and can be restored within ${PROJECT_TRASH_DAYS} days. After that it's permanently deleted, along with its contributions, expenses and activity. Money already recorded in Transactions is kept.`}
+        confirmLabel="Move to Trash"
+      />
     </div>
   )
 }
