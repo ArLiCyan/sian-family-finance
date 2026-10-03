@@ -88,7 +88,9 @@ export default function ProjectContributionsTab({ project, members, canManage, o
               <tbody className="divide-y divide-gray-100 dark:divide-sage-800">
                 {contributions.map((c) => (
                   <tr key={c.id}>
-                    <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{c.contributor_name || c.profiles?.display_name}</td>
+                    <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{c.contributor_name || c.profiles?.display_name}
+                      {c.notes && <p className="mt-0.5 max-w-xs whitespace-pre-line text-xs font-normal text-gray-500 dark:text-gray-400">Note: {c.notes}</p>}
+                    </td>
                     <td className="py-2.5 pr-3 text-gray-500">{formatDateShort(c.date)}</td>
                     <td className="py-2.5 pr-3 text-gray-500">{c.payment_method || '—'}</td>
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
@@ -118,6 +120,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
                         </div>
                       )}
                       {c.verifier && <p className="text-xs text-gray-400">by {c.verifier.display_name}</p>}
+                      {c.verification_note && <p className="max-w-[10rem] whitespace-pre-line text-xs text-gray-400">“{c.verification_note}”</p>}
                     </td>
                   </tr>
                 ))}
