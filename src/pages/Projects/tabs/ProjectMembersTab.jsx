@@ -1,51 +1,12 @@
-import { useEffect, useState } from 'react'
-import { UserPlus, Trash2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
-import { getFamilyMembers } from '../../../lib/api'
 import Card, { CardHeader } from '../../../components/ui/Card'
-import Button from '../../../components/ui/Button'
-import Modal from '../../../components/ui/Modal'
-import { Field, Select } from '../../../components/ui/FormField'
 import { initials } from '../../../lib/format'
 
+// Every family member is added to every project automatically (database
+// triggers), so there is no add/remove here — only the per-project permissions.
 export default function ProjectMembersTab({ project, members, canManage, onChange }) {
-  const { family } = useAuth()
   const { showToast } = useToast()
-  const [open, setOpen] = useState(false)
-  const [candidates, setCandidates] = useState([])
-  const [selected, setSelected] = useState('')
-
-  useEffect(() => {
-    if (open && family) {
-      getFamilyMembers(family.id).then((all) => {
-        const memberIds = new Set(members.map((m) => m.profile_id))
-        setCandidates(all.filter((m) => !memberIds.has(m.profile_id)))
-      })
-    }
-  }, [open, family, members])
-
-  async function addMember() {
-    if (!selected) return
-    const { error } = await supabase.from('project_members').insert({ project_id: project.id, profile_id: selected, role: 'participant' })
-    if (error) {
-      showToast(`Couldn't add participant: ${error.message}`)
-      return
-    }
-    setOpen(false)
-    setSelected('')
-    onChange?.()
-  }
-
-  async function removeMember(profileId) {
-    const { error } = await supabase.from('project_members').delete().eq('project_id', project.id).eq('profile_id', profileId)
-    if (error) {
-      showToast(`Couldn't remove participant: ${error.message}`)
-      return
-    }
-    onChange?.()
-  }
 
   async function togglePermission(profileId, field, value) {
     const { error } = await supabase.from('project_members').update({ [field]: value }).eq('project_id', project.id).eq('profile_id', profileId)
@@ -58,15 +19,8 @@ export default function ProjectMembersTab({ project, members, canManage, onChang
 
   return (
     <div>
-      {canManage && (
-        <div className="flex justify-end mb-4">
-          <Button onClick={() => setOpen(true)}>
-            <UserPlus className="h-4 w-4" /> Add Participant
-          </Button>
-        </div>
-      )}
       <Card>
-        <CardHeader title="Project Participants" />
+        <CardHeader title="Project Participants" subtitle="Every family member is added to every project automatically" />
         <div className="divide-y divide-gray-100 dark:divide-sage-800">
           {members.map((m) => (
             <div key={m.profile_id} className="flex items-center justify-between py-3">
@@ -89,30 +43,12 @@ export default function ProjectMembersTab({ project, members, canManage, onChang
                     <input type="checkbox" checked={m.can_manage_expenses} onChange={(e) => togglePermission(m.profile_id, 'can_manage_expenses', e.target.checked)} />
                     Can manage expenses
                   </label>
-                  <button onClick={() => removeMember(m.profile_id)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
               )}
             </div>
           ))}
         </div>
       </Card>
-
-      <Modal open={open} onClose={() => setOpen(false)} title="Add Participant" size="sm">
-        <Field label="Family Member">
-          <Select value={selected} onChange={(e) => setSelected(e.target.value)}>
-            <option value="">Select a member</option>
-            {candidates.map((c) => (
-              <option key={c.profile_id} value={c.profile_id}>{c.profiles?.display_name}</option>
-            ))}
-          </Select>
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={addMember} disabled={!selected}>Add</Button>
-        </div>
-      </Modal>
     </div>
   )
 }

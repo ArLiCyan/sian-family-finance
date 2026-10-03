@@ -16,8 +16,13 @@ import EmptyState from '../../../components/ui/EmptyState'
 import LoadingState from '../../../components/ui/LoadingState'
 import { formatDateShort } from '../../../lib/format'
 
+// People who can be picked as the contributor. The last option in the form
+// lets you type any other name.
+export const CONTRIBUTOR_OPTIONS = ['Elaine Bray', 'Arnolfo Sian', 'Arnel Sian']
+
 export default function ProjectContributionsTab({ project, members, canManage, onChange }) {
-  const { profile } = useAuth()
+  const { profile, role } = useAuth()
+  const isAdmin = role === 'owner' || role === 'admin'
   const [contributions, setContributions] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -83,7 +88,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
               <tbody className="divide-y divide-gray-100 dark:divide-sage-800">
                 {contributions.map((c) => (
                   <tr key={c.id}>
-                    <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{c.profiles?.display_name}</td>
+                    <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{c.contributor_name || c.profiles?.display_name}</td>
                     <td className="py-2.5 pr-3 text-gray-500">{formatDateShort(c.date)}</td>
                     <td className="py-2.5 pr-3 text-gray-500">{c.payment_method || '—'}</td>
                     <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={c.confirmed_amount ?? c.amount} /></td>
@@ -102,7 +107,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
                       )}
                     </td>
                     <td className="py-2.5 pl-3 text-right">
-                      {c.status === 'pending' && c.profile_id !== profile.id && (
+                      {c.status === 'pending' && (isAdmin || c.profile_id !== profile.id) && (
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => setVerifying({ contribution: c, action: 'confirm' })} className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30">
                             <Check className="h-4 w-4" />
@@ -122,7 +127,7 @@ export default function ProjectContributionsTab({ project, members, canManage, o
         )}
       </Card>
 
-      <AddContributionModal open={addOpen} onClose={() => setAddOpen(false)} project={project} onSaved={afterChange} />
+      <AddContributionModal open={addOpen} onClose={() => setAddOpen(false)} project={project} members={members} canManage={canManage} isAdmin={isAdmin} onSaved={afterChange} />
       <RequirementsModal open={requirementsOpen} onClose={() => setRequirementsOpen(false)} project={project} members={members} onSaved={afterChange} />
       <VerifyModal state={verifying} onClose={() => setVerifying(null)} onSaved={afterChange} />
       <ReceiptModal path={viewingReceipt} onClose={() => setViewingReceipt(null)} />
@@ -133,16 +138,28 @@ export default function ProjectContributionsTab({ project, members, canManage, o
 const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
 const MAX_RECEIPT_SIZE = 10 * 1024 * 1024 // 10MB
 
-function AddContributionModal({ open, onClose, project, onSaved }) {
+const CUSTOM_CONTRIBUTOR = '__custom__'
+
+function AddContributionModal({ open, onClose, project, members, canManage, isAdmin, onSaved }) {
   const { profile } = useAuth()
   const [accounts, setAccounts] = useState([])
   const [form, setForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), payment_method: '', account_id: '', notes: '' })
   const [receiptFile, setReceiptFile] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [contributor, setContributor] = useState('')
+  const [customName, setCustomName] = useState('')
+
+  const contributorName = (contributor === CUSTOM_CONTRIBUTOR ? customName : contributor).trim()
+  // If the chosen name belongs to a site member, the contribution is recorded under their account.
+  const matched = members.find((m) => m.profiles?.display_name?.trim().toLowerCase() === contributorName.toLowerCase())
+  const effectiveProfileId = matched && (matched.profile_id === profile.id || canManage) ? matched.profile_id : profile.id
+  const forMe = effectiveProfileId === profile.id
 
   useEffect(() => {
     if (open) {
+      setContributor('')
+      setCustomName('')
       getAccountsWithBalances({ scope: 'private', profileId: profile.id }).then(({ accounts: a }) => setAccounts(a))
       setForm({ amount: '', date: new Date().toISOString().slice(0, 10), payment_method: '', account_id: '', notes: '' })
       setReceiptFile(null)
@@ -169,6 +186,10 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!contributorName) {
+      setError(contributor === CUSTOM_CONTRIBUTOR ? "Type the contributor's name." : 'Choose who is contributing.')
+      return
+    }
     if (!form.amount || Number(form.amount) <= 0) {
       setError('Enter a valid amount.')
       return
@@ -192,14 +213,18 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
       .from('project_contributions')
       .insert({
         project_id: project.id,
-        profile_id: profile.id,
+        profile_id: effectiveProfileId,
+        contributor_name: contributorName,
         amount: Number(form.amount),
         date: form.date,
         payment_method: form.payment_method || null,
-        account_id: form.account_id || null,
+        account_id: forMe ? form.account_id || null : null,
         notes: form.notes || null,
-        status: 'pending',
         receipt_path: receiptPath,
+        // Admins don't need anyone's approval.
+        ...(isAdmin
+          ? { status: 'confirmed', confirmed_amount: Number(form.amount), verified_by: profile.id, verified_at: new Date().toISOString() }
+          : { status: 'pending' }),
       })
       .select()
       .single()
@@ -210,7 +235,7 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
       return
     }
 
-    if (form.account_id) {
+    if (forMe && form.account_id) {
       const { data: txn } = await supabase
         .from('transactions')
         .insert({
@@ -240,8 +265,20 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
   return (
     <Modal open={open} onClose={onClose} title="Add Contribution">
       <form onSubmit={handleSubmit}>
+        <Field label="Contributor" required>
+          <Select value={contributor} onChange={(e) => setContributor(e.target.value)}>
+            <option value="">Select contributor</option>
+            {CONTRIBUTOR_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+            <option value={CUSTOM_CONTRIBUTOR}>Other (type a name)…</option>
+          </Select>
+          {contributor === CUSTOM_CONTRIBUTOR && (
+            <Input className="mt-2" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Contributor's name" autoFocus />
+          )}
+        </Field>
         <Field label="Amount (₱)" required>
-          <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
+          <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
         </Field>
         <Field label="Date" required>
           <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
@@ -249,16 +286,18 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
         <Field label="Payment Method">
           <Input value={form.payment_method} onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))} placeholder="GCash, Cash…" />
         </Field>
-        <Field label="Source Account (optional)" hint="If set, this amount will be deducted from your private account balance.">
-          <Select value={form.account_id} onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))}>
-            <option value="">Don't track source account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {forMe && (
+          <Field label="Source Account (optional)" hint="If set, this amount will be deducted from your private account balance.">
+            <Select value={form.account_id} onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))}>
+              <option value="">Don't track source account</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         <Field label="Notes">
           <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
         </Field>
@@ -274,7 +313,7 @@ function AddContributionModal({ open, onClose, project, onSaved }) {
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={saving}>Submit Contribution</Button>
+          <Button type="submit" loading={saving}>{isAdmin ? 'Add Contribution' : 'Submit Contribution'}</Button>
         </div>
       </form>
     </Modal>
@@ -380,7 +419,7 @@ function VerifyModal({ state, onClose, onSaved }) {
   return (
     <Modal open={!!state} onClose={onClose} title={action === 'confirm' ? 'Confirm Contribution' : 'Reject Contribution'} size="sm">
       <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
-        {contribution.profiles?.display_name}'s <CurrencyDisplay amount={contribution.amount} className="font-semibold" /> contribution.
+        {contribution.contributor_name || contribution.profiles?.display_name}'s <CurrencyDisplay amount={contribution.amount} className="font-semibold" /> contribution.
       </p>
       {action === 'confirm' && (
         <label className="mb-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">

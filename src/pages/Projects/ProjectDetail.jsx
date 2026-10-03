@@ -87,7 +87,7 @@ export default function ProjectDetail() {
     const contribRows = (contributions ?? []).map((c) => [
       'Contribution',
       c.date,
-      `${c.profiles?.display_name ?? 'Unknown'}'s contribution`,
+      `${c.contributor_name || c.profiles?.display_name || 'Unknown'}'s contribution`,
       c.payment_method || '',
       c.status,
       Number(c.confirmed_amount ?? c.amount).toFixed(2),
