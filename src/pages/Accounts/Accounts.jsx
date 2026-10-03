@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Wallet, Archive, Pencil, ChevronRight } from 'lucide-react'
+import { Plus, Wallet, Archive, Pencil, ChevronRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
@@ -13,7 +13,10 @@ import LoadingState from '../../components/ui/LoadingState'
 import EmptyState from '../../components/ui/EmptyState'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
+import ExportMenu from '../../components/ui/ExportMenu'
+import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
 import AccountForm from './AccountForm'
+import AccountShelfModal, { ACCOUNT_TRASH_DAYS } from './AccountShelfModal'
 
 export default function Accounts() {
   const { profile, family } = useAuth()
@@ -25,6 +28,8 @@ export default function Accounts() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [archiving, setArchiving] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [shelf, setShelf] = useState(null) // 'archived' | 'trash' | null
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -53,15 +58,58 @@ export default function Accounts() {
 
   const total = accounts.reduce((sum, a) => sum + (balances[a.id] ?? 0), 0)
 
+  async function handleDelete() {
+    const account = deleting
+    setDeleting(null)
+    const { error } = await supabase.from('financial_accounts').update({ deleted_at: new Date().toISOString(), deleted_by: profile.id }).eq('id', account.id)
+    if (error) {
+      showToast(`Couldn't delete account: ${error.message}`)
+      return
+    }
+    load()
+  }
+
+  const exportHeaders = ['Account', 'Type', 'Description', 'Opening Balance', 'Current Balance']
+  const exportRows = () =>
+    accounts.map((a) => [a.name, ACCOUNT_TYPE_LABELS[a.account_type], a.description?.trim() ?? '', Number(a.starting_balance).toFixed(2), Number(balances[a.id] ?? 0).toFixed(2)])
+  const exportBase = isFamily ? 'sian-family-accounts' : 'my-accounts'
+  async function exportPdf() {
+    try {
+      await exportToPdf(`${exportBase}.pdf`, {
+        title: isFamily ? 'SIAN Family Finance — Accounts' : 'My Finances — Accounts',
+        subtitle: new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }),
+        headers: exportHeaders,
+        rows: exportRows(),
+        summary: [`Total balance: PHP ${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`],
+      })
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title={isFamily ? 'Family Accounts' : 'My Accounts'}
         subtitle={<>Total balance: <CurrencyDisplay amount={total} className="font-semibold" /></>}
         action={
-          <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
-            <Plus className="h-4 w-4" /> Add Account
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportMenu
+              onCsv={() => exportToCsv(`${exportBase}.csv`, exportHeaders, exportRows())}
+              onXls={() => exportToXls(`${exportBase}.xls`, exportHeaders, exportRows(), 'Accounts')}
+              onPdf={exportPdf}
+              disabled={accounts.length === 0}
+            />
+            <Button variant="outline" onClick={() => setShelf('archived')}>
+              <Archive className="h-4 w-4" /> Archived
+            </Button>
+            <Button variant="outline" onClick={() => setShelf('trash')}>
+              <Trash2 className="h-4 w-4" /> Trash
+            </Button>
+            <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
+              <Plus className="h-4 w-4" /> Add Account
+            </Button>
+          </div>
         }
       />
 
@@ -85,7 +133,7 @@ export default function Accounts() {
                       <Wallet className="h-5 w-5" />
                     </div>
                     {/* spacer so the edit/archive buttons below don't cover anything */}
-                    <div className="h-7 w-16" />
+                    <div className="h-7 w-24" />
                   </div>
                   <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">{a.name}</p>
                   <p className={`text-xl font-bold ${(balances[a.id] ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
@@ -107,6 +155,9 @@ export default function Accounts() {
                 <button title="Archive" onClick={() => setArchiving(a)} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-sage-800">
                   <Archive className="h-3.5 w-3.5" />
                 </button>
+                <button title="Delete" onClick={() => setDeleting(a)} className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           ))}
@@ -114,6 +165,15 @@ export default function Accounts() {
       )}
 
       <AccountForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={load} initial={editing} />
+      <AccountShelfModal open={!!shelf} mode={shelf ?? 'archived'} onClose={() => setShelf(null)} onRestored={load} />
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={handleDelete}
+        title="Move to Trash?"
+        message={`"${deleting?.name}" moves to Trash and can be restored within ${ACCOUNT_TRASH_DAYS} days. After that it's permanently deleted, along with its Cash In / Cash Out entries. Other transactions that used this account are kept, just without an account.`}
+        confirmLabel="Move to Trash"
+      />
       <ConfirmDialog
         open={!!archiving}
         onClose={() => setArchiving(null)}

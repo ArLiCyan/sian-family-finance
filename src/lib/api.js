@@ -9,7 +9,7 @@ export async function generateDueRecurring() {
 }
 
 export async function getAccountsWithBalances({ scope, familyId, profileId }) {
-  let query = supabase.from('financial_accounts').select('*').eq('scope', scope).eq('status', 'active')
+  let query = supabase.from('financial_accounts').select('*').eq('scope', scope).eq('status', 'active').is('deleted_at', null)
   query = scope === 'private' ? query.eq('owner_profile_id', profileId) : query.eq('family_id', familyId)
   const { data: accounts, error } = await query.order('created_at', { ascending: true })
   if (error || !accounts?.length) return { accounts: accounts ?? [], balances: {} }

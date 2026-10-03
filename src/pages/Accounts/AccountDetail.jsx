@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Archive, TrendingUp, TrendingDown, ListOrdered } from 'lucide-react'
+import { ChevronLeft, Wallet, ArrowDownLeft, ArrowUpRight, Pencil, Archive, Trash2, TrendingUp, TrendingDown, ListOrdered } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts'
 import clsx from 'clsx'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { ACCOUNT_TYPE_LABELS, TRANSACTION_TYPE_LABELS } from '../../lib/api'
 import { formatDate, formatDateShort } from '../../lib/format'
 import Card, { CardHeader } from '../../components/ui/Card'
@@ -17,7 +18,10 @@ import EmptyState from '../../components/ui/EmptyState'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
 import AccountForm from './AccountForm'
+import ExportMenu from '../../components/ui/ExportMenu'
+import { exportDocumentToCsv, exportDocumentToXls, exportDocumentToPdf } from '../../lib/exportUtils'
 import AccountMoneyModal from './AccountMoneyModal'
+import { ACCOUNT_TRASH_DAYS } from './AccountShelfModal'
 
 // Same rules as the account_ledger database view.
 const INFLOW = new Set(['income', 'deposit', 'refund', 'loan_received', 'adjustment'])
@@ -33,6 +37,7 @@ export default function AccountDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { profile } = useAuth()
   const [account, setAccount] = useState(null)
   const [balance, setBalance] = useState(0)
   const [txns, setTxns] = useState([])
@@ -42,12 +47,13 @@ export default function AccountDetail() {
   const [moneyMode, setMoneyMode] = useState(null) // 'in' | 'out' | null
   const [editOpen, setEditOpen] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [filter, setFilter] = useState('all')
   const [shown, setShown] = useState(PAGE_SIZE)
   const [days, setDays] = useState(30)
 
   const load = useCallback(async () => {
-    const { data: acc } = await supabase.from('financial_accounts').select('*').eq('id', id).maybeSingle()
+    const { data: acc } = await supabase.from('financial_accounts').select('*').eq('id', id).is('deleted_at', null).maybeSingle()
     if (!acc) {
       setNotFound(true)
       setLoading(false)
@@ -156,6 +162,57 @@ export default function AccountDetail() {
     navigate('/accounts')
   }
 
+  async function handleDelete() {
+    const { error } = await supabase.from('financial_accounts').update({ deleted_at: new Date().toISOString(), deleted_by: profile.id }).eq('id', id)
+    setDeleting(false)
+    if (error) {
+      showToast(`Couldn't delete account: ${error.message}`)
+      return
+    }
+    navigate('/accounts')
+  }
+
+  // Printable copy of this account: details plus the full history, oldest first.
+  // symbol: "PHP " for PDF (its font has no peso sign), "₱" for Excel, "" for CSV.
+  function buildReport(symbol) {
+    const fmt = (n) => `${symbol}${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return {
+      title: `${account.name} — Account Statement`,
+      subtitle: `${ACCOUNT_TYPE_LABELS[account.account_type]} · printed ${new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+      details: [
+        ['Account', account.name],
+        ['Type', ACCOUNT_TYPE_LABELS[account.account_type]],
+        ['Description', account.description?.trim() || '—'],
+        ['Opened', formatDate(account.created_at)],
+        ['Opening balance', fmt(account.starting_balance)],
+        ['Total money in', fmt(totalIn)],
+        ['Total money out', fmt(totalOut)],
+        ['Current balance', fmt(balance)],
+      ],
+      sections: [
+        {
+          title: 'History',
+          headers: ['Date', 'Details', 'Amount', 'Balance after', 'By'],
+          rows: entries.map((e) => [
+            e.date,
+            [e.label, e.sub, e.notes].filter(Boolean).join(' — '),
+            `${e.delta >= 0 ? '+' : '-'}${fmt(Math.abs(e.delta))}`,
+            fmt(e.running),
+            e.by ?? '',
+          ]),
+        },
+      ],
+    }
+  }
+  const fileBase = String(account?.name ?? 'account').replace(/[\\/:*?"<>|]/g, '-')
+  async function exportPdf() {
+    try {
+      await exportDocumentToPdf(`${fileBase}-statement.pdf`, buildReport('PHP '))
+    } catch (err) {
+      showToast(`Couldn't create the PDF: ${err.message}`)
+    }
+  }
+
   if (loading) return <LoadingState />
   if (notFound) {
     return (
@@ -213,12 +270,20 @@ export default function AccountDetail() {
           <Button variant="outline" className="!border-red-300 !text-red-600 hover:!bg-red-50 dark:!border-red-800 dark:!text-red-400 dark:hover:!bg-red-900/20" onClick={() => setMoneyMode('out')}>
             <ArrowUpRight className="h-4 w-4" /> Cash Out
           </Button>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap gap-2">
+            <ExportMenu
+              onCsv={() => exportDocumentToCsv(`${fileBase}-statement.csv`, buildReport(''))}
+              onXls={() => exportDocumentToXls(`${fileBase}-statement.xls`, buildReport('₱'))}
+              onPdf={exportPdf}
+            />
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" /> Edit
             </Button>
             <Button variant="outline" onClick={() => setArchiving(true)}>
               <Archive className="h-4 w-4" /> Archive
+            </Button>
+            <Button variant="outline" className="!text-red-600 hover:!bg-red-50 dark:!text-red-400 dark:hover:!bg-red-900/20" onClick={() => setDeleting(true)}>
+              <Trash2 className="h-4 w-4" /> Delete
             </Button>
           </div>
         </div>
@@ -366,6 +431,14 @@ export default function AccountDetail() {
 
       <AccountMoneyModal open={!!moneyMode} mode={moneyMode ?? 'in'} account={account} balance={balance} onClose={() => setMoneyMode(null)} onSaved={load} />
       <AccountForm open={editOpen} onClose={() => setEditOpen(false)} onSaved={load} initial={account} />
+      <ConfirmDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        onConfirm={handleDelete}
+        title="Move to Trash?"
+        message={`"${account.name}" moves to Trash and can be restored within ${ACCOUNT_TRASH_DAYS} days. After that it's permanently deleted, along with its Cash In / Cash Out entries. Other transactions that used this account are kept, just without an account.`}
+        confirmLabel="Move to Trash"
+      />
       <ConfirmDialog
         open={archiving}
         onClose={() => setArchiving(false)}
