@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { useRealtimeRefresh } from '../../lib/useRealtimeRefresh'
-import { exportToCsv, exportToXls, exportToPdf } from '../../lib/exportUtils'
+import { exportDocumentToCsv, exportDocumentToXls, exportDocumentToPdf } from '../../lib/exportUtils'
 import LoadingState from '../../components/ui/LoadingState'
 import Card from '../../components/ui/Card'
 import Tabs from '../../components/ui/Tabs'
@@ -73,9 +73,9 @@ export default function ProjectDetail() {
     load()
   }
 
-  const exportHeaders = ['Type', 'Date', 'Description', 'Category / Method', 'Status', 'Amount']
-
-  async function buildExportRows() {
+  // The report has two separate tables: contributions first, then expenses.
+  // money(symbol): "PHP " for PDF (its font has no peso sign), "₱" for Excel, "" for CSV.
+  async function buildReport(money) {
     const [{ data: contributions }, { data: expenses }] = await Promise.all([
       supabase
         .from('project_contributions')
@@ -84,46 +84,59 @@ export default function ProjectDetail() {
         .order('date', { ascending: false }),
       supabase.from('project_expenses').select('*, categories(name)').eq('project_id', id).is('deleted_at', null).order('date', { ascending: false }),
     ])
+    const fmt = (n) => `${money}${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const counted = (c) => c.status === 'confirmed' || c.status === 'partially_confirmed'
+
     const contribRows = (contributions ?? []).map((c) => [
-      'Contribution',
+      c.contributor_name || c.profiles?.display_name || 'Unknown',
       c.date,
-      `${c.contributor_name || c.profiles?.display_name || 'Unknown'}'s contribution${c.notes ? ` — ${c.notes}` : ''}`,
       c.payment_method || '',
-      c.status,
-      Number(c.confirmed_amount ?? c.amount).toFixed(2),
+      c.status.replace('_', ' '),
+      c.notes || '',
+      fmt(c.confirmed_amount ?? c.amount),
     ])
-    const expenseRows = (expenses ?? []).map((e) => [
-      'Expense',
-      e.date,
-      e.description,
-      e.categories?.name ?? '',
-      '',
-      (-Number(e.amount)).toFixed(2),
-    ])
-    return [...contribRows, ...expenseRows].sort((a, b) => (a[1] < b[1] ? 1 : -1))
+    const contribTotal = (contributions ?? []).filter(counted).reduce((sum, c) => sum + Number(c.confirmed_amount ?? c.amount), 0)
+    if (contribRows.length) contribRows.push(['Total (confirmed)', '', '', '', '', fmt(contribTotal)])
+
+    const expenseRows = (expenses ?? []).map((e) => [e.description, e.date, e.vendor || '', e.categories?.name ?? '', fmt(e.amount)])
+    const expenseTotal = (expenses ?? []).reduce((sum, e) => sum + Number(e.amount), 0)
+    if (expenseRows.length) expenseRows.push(['Total', '', '', '', fmt(expenseTotal)])
+
+    return {
+      title: `${project.name} — Project Report`,
+      subtitle: PROJECT_TYPES[project.project_type],
+      details: [
+        ['Proposed Budget', fmt(project.budget)],
+        ['Total Contributions', fmt(summary?.confirmed_total ?? 0)],
+        ['Total Spent', fmt(summary?.expense_total ?? 0)],
+        ['Money Available', fmt((summary?.confirmed_total ?? 0) - (summary?.expense_total ?? 0))],
+      ],
+      sections: [
+        { title: 'Contributions', headers: ['Contributor', 'Date', 'Method', 'Status', 'Notes', 'Amount'], rows: contribRows },
+        { title: 'Expenses', headers: ['Description', 'Date', 'Vendor', 'Category', 'Amount'], rows: expenseRows },
+      ],
+    }
   }
 
-  const exportSummary = () => [
-    `Proposed Budget: PHP ${Number(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-    `Total Contributions: PHP ${Number(summary?.confirmed_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-    `Total Spent: PHP ${Number(summary?.expense_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-  ]
+  const fileBase = project?.name.replace(/[\\/:*?"<>|]/g, '-')
 
   async function exportCsv() {
-    exportToCsv(`${project.name}-report.csv`, exportHeaders, await buildExportRows())
+    try {
+      exportDocumentToCsv(`${fileBase}-report.csv`, await buildReport(''))
+    } catch (err) {
+      showToast(`Couldn't create the CSV: ${err.message}`)
+    }
   }
   async function exportXls() {
-    exportToXls(`${project.name}-report.xls`, exportHeaders, await buildExportRows(), project.name)
+    try {
+      exportDocumentToXls(`${fileBase}-report.xls`, await buildReport('₱'))
+    } catch (err) {
+      showToast(`Couldn't create the Excel file: ${err.message}`)
+    }
   }
   async function exportPdf() {
     try {
-      await exportToPdf(`${project.name}-report.pdf`, {
-        title: `${project.name} — Project Report`,
-        subtitle: PROJECT_TYPES[project.project_type],
-        headers: exportHeaders,
-        rows: await buildExportRows(),
-        summary: exportSummary(),
-      })
+      await exportDocumentToPdf(`${fileBase}-report.pdf`, await buildReport('PHP '))
     } catch (err) {
       showToast(`Couldn't create the PDF: ${err.message}`)
     }

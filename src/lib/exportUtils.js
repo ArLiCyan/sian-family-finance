@@ -121,6 +121,28 @@ export async function exportDocumentToPdf(filename, { title, subtitle, details =
   doc.save(filename)
 }
 
+// Same document shape as above, as a CSV: details, then each section as its own
+// titled block separated by a blank line.
+export function exportDocumentToCsv(filename, { title, subtitle, details = [], sections = [] }) {
+  const escape = (v) => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const line = (cells) => cells.map(escape).join(',')
+  const lines = [line([title])]
+  if (subtitle) lines.push(line([subtitle]))
+  if (details.length) {
+    lines.push('')
+    details.forEach(([l, v]) => lines.push(line([l, v ?? ''])))
+  }
+  sections.forEach((s) => {
+    lines.push('', line([s.title]), line(s.headers))
+    if (s.rows.length) s.rows.forEach((r) => lines.push(line(r)))
+    else lines.push(line(['Nothing recorded yet']))
+  })
+  downloadBlob(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }), filename)
+}
+
 export function exportDocumentToXls(filename, { title, subtitle, details = [], sections = [] }) {
   const esc = (v) =>
     String(v ?? '')
