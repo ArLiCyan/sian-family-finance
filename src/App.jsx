@@ -14,6 +14,7 @@ import ResetPassword from './pages/Auth/ResetPassword'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transactions from './pages/Transactions/Transactions'
 import Accounts from './pages/Accounts/Accounts'
+import AccountDetail from './pages/Accounts/AccountDetail'
 import Projects from './pages/Projects/Projects'
 import ProjectDetail from './pages/Projects/ProjectDetail'
 import Debts from './pages/Debts/Debts'
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/accounts" element={<Accounts />} />
+              <Route path="/accounts/:id" element={<AccountDetail />} />
               <Route path="/contributions" element={<Navigate to="/projects" replace />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />

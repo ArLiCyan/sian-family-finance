@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Wallet, Archive, Pencil } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Wallet, Archive, Pencil, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
@@ -76,26 +77,38 @@ export default function Accounts() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {accounts.map((a) => (
-            <Card key={a.id}>
-              <div className="flex items-start justify-between">
-                <div className="rounded-lg bg-sage-50 p-2 text-sage-600 dark:bg-sage-800 dark:text-sage-300">
-                  <Wallet className="h-5 w-5" />
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => { setEditing(a); setFormOpen(true) }} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-sage-800">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => setArchiving(a)} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-sage-800">
-                    <Archive className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+            <div key={a.id} className="relative">
+              <Link to={`/accounts/${a.id}`} className="block h-full">
+                <Card className="h-full transition-colors hover:border-sage-300 dark:hover:border-sage-600">
+                  <div className="flex items-start justify-between">
+                    <div className="rounded-lg bg-sage-50 p-2 text-sage-600 dark:bg-sage-800 dark:text-sage-300">
+                      <Wallet className="h-5 w-5" />
+                    </div>
+                    {/* spacer so the edit/archive buttons below don't cover anything */}
+                    <div className="h-7 w-16" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">{a.name}</p>
+                  <p className={`text-xl font-bold ${(balances[a.id] ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                    <CurrencyDisplay amount={balances[a.id] ?? 0} />
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">{ACCOUNT_TYPE_LABELS[a.account_type]}</p>
+                  {a.description?.trim() && (
+                    <p className="mt-2 line-clamp-2 whitespace-pre-line text-xs text-gray-500 dark:text-gray-400">{a.description.trim()}</p>
+                  )}
+                  <p className="mt-3 flex items-center gap-0.5 text-xs font-medium text-sage-600 dark:text-sage-400">
+                    View details <ChevronRight className="h-3.5 w-3.5" />
+                  </p>
+                </Card>
+              </Link>
+              <div className="absolute right-3 top-3 flex gap-1 sm:right-4 sm:top-4">
+                <button title="Edit" onClick={() => { setEditing(a); setFormOpen(true) }} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-sage-800">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button title="Archive" onClick={() => setArchiving(a)} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-sage-800">
+                  <Archive className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <p className="mt-3 text-sm font-medium text-gray-500">{a.name}</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                <CurrencyDisplay amount={balances[a.id] ?? 0} />
-              </p>
-              <p className="mt-1 text-xs text-gray-400">{ACCOUNT_TYPE_LABELS[a.account_type]}</p>
-            </Card>
+            </div>
           ))}
         </div>
       )}
