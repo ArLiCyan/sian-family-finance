@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AppShell from './components/layout/AppShell'
+import AdminRoute from './components/layout/AdminRoute'
 
 import SignIn from './pages/Auth/SignIn'
 import SignUp from './pages/Auth/SignUp'
@@ -55,11 +56,11 @@ export default function App() {
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/goals" element={<Navigate to="/" replace />} />
               <Route path="/debts" element={<Debts />} />
-              <Route path="/budgets" element={<Budgets />} />
-              <Route path="/sari-sari-store" element={<SariSariStore />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/members" element={<Members />} />
-              <Route path="/announcements" element={<Announcements />} />
+              <Route path="/budgets" element={<AdminRoute familyOnly><Budgets /></AdminRoute>} />
+              <Route path="/sari-sari-store" element={<AdminRoute><SariSariStore /></AdminRoute>} />
+              <Route path="/reports" element={<AdminRoute familyOnly><Reports /></AdminRoute>} />
+              <Route path="/members" element={<AdminRoute><Members /></AdminRoute>} />
+              <Route path="/announcements" element={<AdminRoute><Announcements /></AdminRoute>} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/settings" element={<Settings />} />

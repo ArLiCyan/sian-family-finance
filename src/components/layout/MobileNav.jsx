@@ -4,14 +4,14 @@ import clsx from 'clsx'
 import { Menu, X, Shield, Settings, LogOut } from 'lucide-react'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { familyNav, privateNav } from './navConfig'
+import { familyNav, privateNav, visibleNav } from './navConfig'
 import ModeSwitcher from './ModeSwitcher'
 
 export default function MobileNav() {
   const { isFamily } = useFinanceMode()
   const { role, signOut } = useAuth()
   const [open, setOpen] = useState(false)
-  const items = isFamily ? familyNav : privateNav
+  const items = visibleNav(isFamily ? familyNav : privateNav, role)
   const bottomItems = items.slice(0, 4)
 
   return (

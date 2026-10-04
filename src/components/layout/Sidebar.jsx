@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { Wallet, Shield, Settings } from 'lucide-react'
 import { useFinanceMode } from '../../contexts/FinanceModeContext'
 import { useAuth } from '../../contexts/AuthContext'
-import { familyNav, privateNav } from './navConfig'
+import { familyNav, privateNav, visibleNav } from './navConfig'
 import ModeSwitcher from './ModeSwitcher'
 
 function NavItem({ item }) {
@@ -29,7 +29,7 @@ function NavItem({ item }) {
 export default function Sidebar() {
   const { isFamily } = useFinanceMode()
   const { role } = useAuth()
-  const items = isFamily ? familyNav : privateNav
+  const items = visibleNav(isFamily ? familyNav : privateNav, role)
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col border-r border-gray-200 dark:border-sage-800 bg-white dark:bg-sage-900 h-screen sticky top-0">
