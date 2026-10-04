@@ -95,7 +95,7 @@ export default function Debts() {
                   <th className="py-2 pr-3">Creditor</th>
                   <th className="py-2 pr-3">Due Date</th>
                   <th className="py-2 pr-3 text-right">Balance</th>
-                  <th className="py-2 pr-3">Months Left</th>
+                  <th className="py-2 pl-8 pr-3">Months Left</th>
                   <th className="py-2 pr-3">Status</th>
                   <th className="py-2 pl-3" />
                 </tr>
@@ -109,7 +109,7 @@ export default function Debts() {
                       <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{d.counterparty_name}</td>
                       <td className="py-2.5 pr-3 text-gray-500">{d.due_date ? formatDate(d.due_date) : '—'}</td>
                       <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={remaining} /></td>
-                      <td className="py-2.5 pr-3 text-gray-500">
+                      <td className="py-2.5 pl-8 pr-3 text-gray-500">
                         {d.status === 'paid' ? '—' : proj?.months_remaining != null ? `${proj.months_remaining} mo` : 'Unknown'}
                       </td>
                       <td className="py-2.5 pr-3"><StatusBadge status={d.status} map={debtStatusColor} /></td>
