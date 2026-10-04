@@ -27,7 +27,7 @@ const PIE_COLORS = ['#2c4876', '#3d5f92', '#5f80af', '#8fa9cc', '#b8cbe1', '#f59
 export default function Dashboard() {
   const { profile, family } = useAuth()
   const { mode, isFamily } = useFinanceMode()
-  const [preset, setPreset] = useState('this_month')
+  const [preset, setPreset] = useState('all_time')
   const [summary, setSummary] = useState(null)
   const [balance, setBalance] = useState(0)
   const [recent, setRecent] = useState([])

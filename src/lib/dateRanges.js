@@ -29,6 +29,10 @@ export function getPresetRange(preset) {
       const end = new Date(now.getFullYear(), 11, 31)
       return { start: fmt(start), end: fmt(end) }
     }
+    case 'all_time': {
+      const end = new Date(now.getFullYear(), 11, 31)
+      return { start: '2000-01-01', end: fmt(end) }
+    }
     default:
       return getPresetRange('this_month')
   }
@@ -39,4 +43,5 @@ export const rangePresets = [
   { value: 'this_month', label: 'This Month' },
   { value: 'last_month', label: 'Last Month' },
   { value: 'this_year', label: 'This Year' },
+  { value: 'all_time', label: 'All Time' },
 ]
