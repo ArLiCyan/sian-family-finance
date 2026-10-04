@@ -92,10 +92,9 @@ export default function Debts() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-sage-800 text-left text-xs uppercase text-gray-400">
-                  <th className="py-2 pr-3">Counterparty</th>
-                  <th className="py-2 pr-3">Direction</th>
-                  <th className="py-2 pr-3">Due</th>
-                  <th className="py-2 pr-3 text-right">Remaining</th>
+                  <th className="py-2 pr-3">Creditor</th>
+                  <th className="py-2 pr-3">Due Date</th>
+                  <th className="py-2 pr-3 text-right">Balance</th>
                   <th className="py-2 pr-3">Months Left</th>
                   <th className="py-2 pr-3">Status</th>
                   <th className="py-2 pl-3" />
@@ -108,7 +107,6 @@ export default function Debts() {
                   return (
                     <tr key={d.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-sage-800/30" onClick={() => setViewing(d)}>
                       <td className="py-2.5 pr-3 font-medium text-gray-900 dark:text-gray-100">{d.counterparty_name}</td>
-                      <td className="py-2.5 pr-3 capitalize text-gray-500">{d.direction}</td>
                       <td className="py-2.5 pr-3 text-gray-500">{d.due_date ? formatDate(d.due_date) : '—'}</td>
                       <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={remaining} /></td>
                       <td className="py-2.5 pr-3 text-gray-500">
