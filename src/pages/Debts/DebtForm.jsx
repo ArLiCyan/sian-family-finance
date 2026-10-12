@@ -17,6 +17,7 @@ const blankForm = () => ({
   original_amount: '',
   start_date: today(),
   due_date: '',
+  no_due_date: false,
   payment_frequency: 'monthly',
   installment_amount: '',
   due_day_of_month: '',
@@ -48,6 +49,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
         original_amount: initial.original_amount,
         start_date: initial.start_date ?? today(),
         due_date: initial.due_date ?? '',
+        no_due_date: !initial.due_date,
         payment_frequency: initial.payment_frequency ?? 'monthly',
         installment_amount: initial.installment_amount ?? '',
         due_day_of_month: initial.due_day_of_month ?? '',
@@ -145,7 +147,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
     const payload = {
       counterparty_name: form.counterparty_name.trim(),
       start_date: form.start_date || today(),
-      due_date: form.due_date || null,
+      due_date: form.no_due_date ? null : form.due_date || null,
       payment_frequency: form.payment_frequency,
       installment_amount: form.installment_amount ? Number(form.installment_amount) : null,
       due_day_of_month: form.payment_frequency === 'monthly' && form.due_day_of_month ? Number(form.due_day_of_month) : null,
@@ -317,7 +319,20 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
           <Input type="date" value={form.start_date} onChange={(e) => update('start_date', e.target.value)} />
         </Field>
         <Field label="Due Date">
-          <Input type="date" value={form.due_date} onChange={(e) => update('due_date', e.target.value)} />
+          <Input
+            type="date"
+            value={form.no_due_date ? '' : form.due_date}
+            onChange={(e) => update('due_date', e.target.value)}
+            disabled={form.no_due_date}
+          />
+          <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={!!form.no_due_date}
+              onChange={(e) => setForm((f) => ({ ...f, no_due_date: e.target.checked, due_date: e.target.checked ? '' : f.due_date }))}
+            />
+            No due date — just pay until the balance is zero
+          </label>
         </Field>
         <Field label="How often is it paid?" hint="Choose how the payments are made. The schedule and the expected payment follow this.">
           <Select value={form.payment_frequency} onChange={(e) => update('payment_frequency', e.target.value)}>

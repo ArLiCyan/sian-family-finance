@@ -58,7 +58,7 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
       [debt.direction === 'borrowed' ? 'Borrowed from' : 'Lent to', debt.counterparty_name],
       ['Status', titleCase(debt.status)],
       ['Start date', debt.start_date ? formatDate(debt.start_date) : '—'],
-      ['Due date', debt.due_date ? formatDate(debt.due_date) : '—'],
+      ['Due date', debt.due_date ? formatDate(debt.due_date) : 'No due date'],
       ['Payment frequency', frequencyOf(debt).label],
       ...(frequencyOf(debt).adj === 'monthly' ? [['Monthly due day', debt.due_day_of_month ? `Every ${debt.due_day_of_month}` : '—']] : []),
       [`Expected ${frequencyOf(debt).adj} payment`, debt.installment_amount ? money(debt.installment_amount) : '—'],
