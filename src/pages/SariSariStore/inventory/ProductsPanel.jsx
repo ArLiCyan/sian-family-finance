@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Archive, Pencil, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { Plus, Search, Archive, Pencil, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -17,7 +17,6 @@ export default function ProductsPanel({ system, canManage }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [columns, setColumns] = useState([])
-  const [columnsOpen, setColumnsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -62,11 +61,6 @@ export default function ProductsPanel({ system, canManage }) {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </Select>
-        {canManage && (
-          <Button variant="outline" onClick={() => setColumnsOpen(true)}>
-            <SlidersHorizontal className="h-4 w-4" /> Columns
-          </Button>
-        )}
         {canManage && (
           <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
             <Plus className="h-4 w-4" /> Add Product
@@ -130,7 +124,6 @@ export default function ProductsPanel({ system, canManage }) {
         onSaved={load}
         onColumnsChanged={load}
       />
-      <ProductColumnsModal open={columnsOpen} onClose={() => setColumnsOpen(false)} system={system} columns={columns} onChanged={load} />
     </div>
   )
 }
@@ -140,130 +133,6 @@ const hasValue = (v) => v !== undefined && v !== null && v !== ''
 function formatValue(column, value) {
   if (column.field_type === 'money') return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return String(value)
-}
-
-// Lets the store owner add her own extra columns to the product list (and rename or remove them).
-function ProductColumnsModal({ open, onClose, system, columns, onChanged }) {
-  const { profile } = useAuth()
-  const { showToast } = useToast()
-  const [name, setName] = useState('')
-  const [type, setType] = useState('money')
-  const [adding, setAdding] = useState(false)
-  const [error, setError] = useState('')
-  const [names, setNames] = useState({})
-
-  useEffect(() => {
-    if (open) {
-      setName('')
-      setType('money')
-      setError('')
-      setNames(Object.fromEntries(columns.map((c) => [c.id, c.name])))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  async function addColumn(e) {
-    e.preventDefault()
-    if (!name.trim()) {
-      setError('Type a name for the new column.')
-      return
-    }
-    setAdding(true)
-    setError('')
-    const { data, error: err } = await supabase
-      .from('inventory_product_fields')
-      .insert({ inventory_system_id: system.id, name: name.trim(), field_type: type, sort_order: columns.length + 1, created_by: profile.id })
-      .select()
-      .single()
-    setAdding(false)
-    if (err) {
-      setError(err.message.includes('duplicate') ? 'You already have a column with that name.' : err.message)
-      return
-    }
-    setNames((n) => ({ ...n, [data.id]: data.name }))
-    setName('')
-    onChanged?.()
-  }
-
-  async function rename(column) {
-    const next = (names[column.id] ?? '').trim()
-    if (!next || next === column.name) {
-      setNames((n) => ({ ...n, [column.id]: column.name }))
-      return
-    }
-    const { error: err } = await supabase.from('inventory_product_fields').update({ name: next }).eq('id', column.id)
-    if (err) {
-      showToast(`Couldn't rename: ${err.message.includes('duplicate') ? 'you already have a column with that name' : err.message}`)
-      setNames((n) => ({ ...n, [column.id]: column.name }))
-      return
-    }
-    onChanged?.()
-  }
-
-  async function remove(column) {
-    const { error: err } = await supabase.from('inventory_product_fields').update({ archived_at: new Date().toISOString() }).eq('id', column.id)
-    if (err) {
-      showToast(`Couldn't remove column: ${err.message}`)
-      return
-    }
-    onChanged?.()
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Product Columns" size="sm">
-      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        These are the extra details you have saved, like a price per case or a supplier. They are not added to every product: you pick them for a product when you add or edit it.
-      </p>
-      {columns.length === 0 ? (
-        <p className="mb-4 rounded-lg bg-sage-50 p-3 text-sm text-gray-600 dark:bg-sage-800/50 dark:text-gray-300">No extra columns yet.</p>
-      ) : (
-        <div className="mb-5 divide-y divide-gray-100 dark:divide-sage-800">
-          {columns.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 py-2">
-              <div className="min-w-0 flex-1">
-                <Input
-                  value={names[c.id] ?? c.name}
-                  onChange={(e) => setNames((n) => ({ ...n, [c.id]: e.target.value }))}
-                  onBlur={() => rename(c)}
-                  aria-label="Column name"
-                />
-                <p className="mt-0.5 text-xs text-gray-400">{COLUMN_TYPES[c.field_type]}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => remove(c)}
-                title="Remove column"
-                className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <form onSubmit={addColumn} className="rounded-lg border border-gray-200 p-3 dark:border-sage-800">
-        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Add a new column</p>
-        <Field label="Column name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pieces per case" />
-        </Field>
-        <Field label="What goes in it?">
-          <Select value={type} onChange={(e) => setType(e.target.value)}>
-            {Object.entries(COLUMN_TYPES).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
-          </Select>
-        </Field>
-        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end">
-          <Button type="submit" loading={adding}>Add Column</Button>
-        </div>
-      </form>
-      <p className="mt-3 text-xs text-gray-400">Removing a column hides it. Anything already typed in it is kept.</p>
-      <div className="mt-4 flex justify-end">
-        <Button variant="outline" onClick={onClose}>Done</Button>
-      </div>
-    </Modal>
-  )
 }
 
 const ADD_CUSTOM = '__new__'
