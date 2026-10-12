@@ -6,7 +6,6 @@ import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import LoadingState from '../../../components/ui/LoadingState'
 import EmptyState from '../../../components/ui/EmptyState'
-import Badge from '../../../components/ui/Badge'
 import CurrencyDisplay from '../../../components/financial/CurrencyDisplay'
 import { formatDateShort } from '../../../lib/format'
 import AddFundingModal from '../capital/AddFundingModal'
@@ -68,10 +67,7 @@ export default function BusinessCapitalTab({ family, canManage }) {
                   <th className="py-2 pr-3">Funding</th>
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Purpose</th>
-                  <th className="py-2 pr-3 text-right">Amount</th>
-                  <th className="py-2 pr-3 text-right">Repaid</th>
-                  <th className="py-2 pr-3 text-right">Remaining</th>
-                  <th className="py-2 pl-3">Status</th>
+                  <th className="py-2 pl-3 text-right">Capital</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-sage-800">
@@ -82,14 +78,7 @@ export default function BusinessCapitalTab({ family, canManage }) {
                     </td>
                     <td className="py-2.5 pr-3 text-gray-500">{formatDateShort(f.funding_date)}</td>
                     <td className="py-2.5 pr-3 text-gray-500">{f.purpose || '—'}</td>
-                    <td className="py-2.5 pr-3 text-right font-semibold"><CurrencyDisplay amount={f.amount} /></td>
-                    <td className="py-2.5 pr-3 text-right text-green-600 dark:text-green-400"><CurrencyDisplay amount={f.total_repaid ?? 0} /></td>
-                    <td className="py-2.5 pr-3 text-right text-red-600 dark:text-red-400"><CurrencyDisplay amount={f.remaining_amount ?? f.amount} /></td>
-                    <td className="py-2.5 pl-3">
-                      <Badge color={f.computed_status === 'fully_repaid' ? 'green' : 'amber'}>
-                        {f.computed_status === 'fully_repaid' ? 'Fully Repaid' : 'Active'}
-                      </Badge>
-                    </td>
+                    <td className="py-2.5 pl-3 text-right font-semibold"><CurrencyDisplay amount={f.amount} /></td>
                   </tr>
                 ))}
               </tbody>

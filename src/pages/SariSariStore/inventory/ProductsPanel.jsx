@@ -82,7 +82,12 @@ export default function ProductsPanel({ system, canManage }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {p.price != null && <CurrencyDisplay amount={p.price} className="text-sm font-medium text-gray-700 dark:text-gray-300" />}
+                  {(p.price != null || p.case_price != null) && (
+                    <div className="text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {p.price != null && <p><CurrencyDisplay amount={p.price} /> <span className="text-xs font-normal text-gray-400">each</span></p>}
+                      {p.case_price != null && <p><CurrencyDisplay amount={p.case_price} /> <span className="text-xs font-normal text-gray-400">per case</span></p>}
+                    </div>
+                  )}
                   {canManage && (
                     <button
                       onClick={() => { setEditing(p); setFormOpen(true) }}
@@ -114,7 +119,7 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
   const { profile } = useAuth()
   const { showToast } = useToast()
   const isEdit = !!initial?.id
-  const [form, setForm] = useState({ name: '', category_id: '', unit: '', low_stock_threshold: '', price: '' })
+  const [form, setForm] = useState({ name: '', category_id: '', unit: '', low_stock_threshold: '', price: '', case_price: '' })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -126,6 +131,7 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
         unit: initial?.unit ?? '',
         low_stock_threshold: initial?.low_stock_threshold ?? '',
         price: initial?.price ?? '',
+        case_price: initial?.case_price ?? '',
       })
       setError('')
     }
@@ -144,6 +150,7 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
       unit: form.unit || null,
       low_stock_threshold: form.low_stock_threshold ? Math.round(Number(form.low_stock_threshold)) : null,
       price: form.price ? Number(form.price) : null,
+      case_price: form.case_price ? Number(form.case_price) : null,
     }
     const { error: err } = isEdit
       ? await supabase.from('inventory_products').update(payload).eq('id', initial.id)
@@ -192,8 +199,11 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
         <Field label="Low Stock Threshold" hint="Get flagged on the Dashboard when ending inventory drops to or below this.">
           <Input type="number" min="0" step="1" inputMode="numeric" value={form.low_stock_threshold} onChange={(e) => setForm((f) => ({ ...f, low_stock_threshold: e.target.value }))} />
         </Field>
-        <Field label="Price (₱)" hint="Optional reference price — for display only, doesn't affect any calculation.">
+        <Field label="Price per Piece (₱)" hint="Optional reference price — for display only, doesn't affect any calculation.">
           <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+        </Field>
+        <Field label="Price per Case (₱)" hint="Optional. What one whole case costs, for example a case of softdrinks.">
+          <Input type="number" min="0" step="0.01" value={form.case_price} onChange={(e) => setForm((f) => ({ ...f, case_price: e.target.value }))} />
         </Field>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-between gap-2">
