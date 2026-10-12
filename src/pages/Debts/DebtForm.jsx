@@ -7,6 +7,7 @@ import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import { Field, Input, Select, Textarea } from '../../components/ui/FormField'
 import { loadDraft, saveDraft, clearDraft } from '../../lib/formDraft'
+import { PAYMENT_FREQUENCIES } from '../../lib/loanSchedule'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'sian_debt_form_draft'
@@ -16,6 +17,7 @@ const blankForm = () => ({
   original_amount: '',
   start_date: today(),
   due_date: '',
+  payment_frequency: 'monthly',
   installment_amount: '',
   due_day_of_month: '',
   principal_amount: '',
@@ -46,6 +48,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
         original_amount: initial.original_amount,
         start_date: initial.start_date ?? today(),
         due_date: initial.due_date ?? '',
+        payment_frequency: initial.payment_frequency ?? 'monthly',
         installment_amount: initial.installment_amount ?? '',
         due_day_of_month: initial.due_day_of_month ?? '',
         principal_amount: initial.principal_amount ?? '',
@@ -124,7 +127,7 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       setError('Counterparty and a positive amount are required.')
       return
     }
-    if (form.due_day_of_month && (Number(form.due_day_of_month) < 1 || Number(form.due_day_of_month) > 31)) {
+    if (form.payment_frequency === 'monthly' && form.due_day_of_month && (Number(form.due_day_of_month) < 1 || Number(form.due_day_of_month) > 31)) {
       setError('Monthly due day must be between 1 and 31.')
       return
     }
@@ -143,8 +146,9 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
       counterparty_name: form.counterparty_name.trim(),
       start_date: form.start_date || today(),
       due_date: form.due_date || null,
+      payment_frequency: form.payment_frequency,
       installment_amount: form.installment_amount ? Number(form.installment_amount) : null,
-      due_day_of_month: form.due_day_of_month ? Number(form.due_day_of_month) : null,
+      due_day_of_month: form.payment_frequency === 'monthly' && form.due_day_of_month ? Number(form.due_day_of_month) : null,
       principal_amount: form.principal_amount ? Number(form.principal_amount) : null,
       interest_amount: form.interest_amount ? Number(form.interest_amount) : null,
       fees_amount: form.fees_amount ? Number(form.fees_amount) : null,
@@ -315,26 +319,35 @@ export default function DebtForm({ open, onClose, onSaved, initial }) {
         <Field label="Due Date">
           <Input type="date" value={form.due_date} onChange={(e) => update('due_date', e.target.value)} />
         </Field>
+        <Field label="How often is it paid?" hint="Choose how the payments are made. The schedule and the expected payment follow this.">
+          <Select value={form.payment_frequency} onChange={(e) => update('payment_frequency', e.target.value)}>
+            {Object.entries(PAYMENT_FREQUENCIES).map(([value, f]) => (
+              <option key={value} value={value}>{f.label}</option>
+            ))}
+          </Select>
+        </Field>
         <Field
-          label="Expected Monthly Payment (₱)"
-          hint="Optional. Set this to get an exact months-remaining countdown. If left blank, it's estimated from actual payment history instead."
+          label={`Expected ${PAYMENT_FREQUENCIES[form.payment_frequency].adj.replace(/^./, (c) => c.toUpperCase())} Payment (₱)`}
+          hint="Optional. Set this to get an exact payment schedule and countdown. If left blank, it's estimated from actual payment history instead."
         >
           <Input type="number" min="0.01" step="0.01" value={form.installment_amount} onChange={(e) => update('installment_amount', e.target.value)} />
         </Field>
-        <Field
-          label="Monthly Due Day"
-          hint="Optional. E.g. 5 for 'every 5th of the month', like a Shopee or credit card bill. Leave blank to space installments a month apart from the start date instead."
-        >
-          <Input
-            type="number"
-            min="1"
-            max="31"
-            step="1"
-            placeholder="e.g. 5"
-            value={form.due_day_of_month}
-            onChange={(e) => update('due_day_of_month', e.target.value)}
-          />
-        </Field>
+        {form.payment_frequency === 'monthly' && (
+          <Field
+            label="Monthly Due Day"
+            hint="Optional. E.g. 5 for 'every 5th of the month', like a Shopee or credit card bill. Leave blank to space installments a month apart from the start date instead."
+          >
+            <Input
+              type="number"
+              min="1"
+              max="31"
+              step="1"
+              placeholder="e.g. 5"
+              value={form.due_day_of_month}
+              onChange={(e) => update('due_day_of_month', e.target.value)}
+            />
+          </Field>
+        )}
         <Field label="Notes">
           <Textarea value={form.notes} onChange={(e) => update('notes', e.target.value)} />
         </Field>

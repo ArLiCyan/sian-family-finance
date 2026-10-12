@@ -14,7 +14,7 @@ import { StatusBadge, debtStatusColor } from '../../components/ui/Badge'
 import ProgressBar from '../../components/financial/ProgressBar'
 import CurrencyDisplay from '../../components/financial/CurrencyDisplay'
 import { formatDate, formatDateShort } from '../../lib/format'
-import { computeInstallmentSchedule } from '../../lib/loanSchedule'
+import { computeInstallmentSchedule, frequencyOf } from '../../lib/loanSchedule'
 
 const INSTALLMENT_STATUS_COLOR = { paid: 'green', partial: 'blue', overdue: 'red', upcoming: 'gray' }
 const INSTALLMENT_STATUS_LABEL = { paid: 'Paid', partial: 'Partial', overdue: 'Overdue', upcoming: 'Upcoming' }
@@ -59,8 +59,9 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
       ['Status', titleCase(debt.status)],
       ['Start date', debt.start_date ? formatDate(debt.start_date) : '—'],
       ['Due date', debt.due_date ? formatDate(debt.due_date) : '—'],
-      ['Monthly due day', debt.due_day_of_month ? `Every ${debt.due_day_of_month}` : '—'],
-      ['Expected monthly payment', debt.installment_amount ? money(debt.installment_amount) : '—'],
+      ['Payment frequency', frequencyOf(debt).label],
+      ...(frequencyOf(debt).adj === 'monthly' ? [['Monthly due day', debt.due_day_of_month ? `Every ${debt.due_day_of_month}` : '—']] : []),
+      [`Expected ${frequencyOf(debt).adj} payment`, debt.installment_amount ? money(debt.installment_amount) : '—'],
       ['Original amount', money(original)],
       ...(debt.principal_amount != null ? [['  Principal', money(debt.principal_amount)]] : []),
       ...(debt.interest_amount != null ? [['  Interest', money(debt.interest_amount)]] : []),
@@ -214,7 +215,7 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
 
           {schedule?.tooMany && (
             <p className="mb-3 text-xs text-amber-600">
-              That monthly amount would take {schedule.numInstallments} installments to pay off — too many to list
+              That {frequencyOf(debt).adj} amount would take {schedule.numInstallments} installments to pay off — too many to list
               individually. Showing payment history instead.
             </p>
           )}
@@ -265,7 +266,7 @@ export default function DebtDetailModal({ debt, onClose, onEdit, onPay, onDelete
           )}
           {!schedule?.installments && !schedule?.tooMany && (
             <p className="mt-2 text-xs text-gray-400">
-              Set an expected monthly payment (Edit) to see an itemized due-date schedule instead of just a payment list.
+              Set an expected {frequencyOf(debt).adj} payment (Edit) to see an itemized due-date schedule instead of just a payment list.
             </p>
           )}
         </div>

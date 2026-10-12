@@ -84,13 +84,13 @@ export default function DebtPaymentModal({ debt, remaining, onClose, onSaved }) 
                   }}
                   className="text-[11px] font-normal text-sage-600 hover:underline dark:text-sage-400"
                 >
-                  {locked ? 'Pay a different amount' : 'Use fixed monthly payment'}
+                  {locked ? 'Pay a different amount' : 'Use fixed payment'}
                 </button>
               )}
             </span>
           }
           required
-          hint={locked ? `Fixed at your Expected Monthly Payment of ₱${fixedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}.` : undefined}
+          hint={locked ? `Fixed at your expected payment of ₱${fixedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}.` : undefined}
         >
           <Input
             type="number"

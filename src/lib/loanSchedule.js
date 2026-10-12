@@ -5,7 +5,14 @@
 // + the actual debt_payments rows every time it's needed, so it can never
 // drift out of sync with the real ledger.
 
-const MAX_INSTALLMENTS = 120 // 10 years monthly — a sanity cap, not a real limit
+// How often a loan is paid. `adj` is the word used in labels ("Expected weekly
+// payment"), `max` a sanity cap on how many installments get listed.
+export const PAYMENT_FREQUENCIES = {
+  weekly: { label: 'Weekly', adj: 'weekly', max: 260 }, // 5 years
+  monthly: { label: 'Monthly', adj: 'monthly', max: 120 }, // 10 years
+  yearly: { label: 'Annually', adj: 'annual', max: 40 }, // 40 years
+}
+export const frequencyOf = (debt) => PAYMENT_FREQUENCIES[debt?.payment_frequency] ?? PAYMENT_FREQUENCIES.monthly
 
 // Last valid calendar day of (year, monthIndex) — handles Feb/30-day months.
 function daysInMonth(year, monthIndex) {
@@ -24,11 +31,13 @@ export function computeInstallmentSchedule(debt, payments) {
   if (!installmentAmt || installmentAmt <= 0 || !original || original <= 0) return null
 
   const numInstallments = Math.ceil(original / installmentAmt)
-  if (numInstallments > MAX_INSTALLMENTS) return { tooMany: true, numInstallments }
+  const frequency = debt.payment_frequency in PAYMENT_FREQUENCIES ? debt.payment_frequency : 'monthly'
+  if (numInstallments > PAYMENT_FREQUENCIES[frequency].max) return { tooMany: true, numInstallments }
 
   const start = new Date(debt.start_date)
   const today = new Date()
-  const dueDay = debt.due_day_of_month ? Number(debt.due_day_of_month) : null
+  // A fixed billing day only makes sense for monthly loans.
+  const dueDay = frequency === 'monthly' && debt.due_day_of_month ? Number(debt.due_day_of_month) : null
 
   // With a fixed billing day, find the first occurrence strictly after the
   // start date, then step forward one calendar month at a time from there.
@@ -55,7 +64,9 @@ export function computeInstallmentSchedule(debt, payments) {
       dueDate = dueDateForMonth(firstDueYear, firstDueMonth + (i - 1), dueDay)
     } else {
       dueDate = new Date(start)
-      dueDate.setMonth(dueDate.getMonth() + i)
+      if (frequency === 'weekly') dueDate.setDate(dueDate.getDate() + 7 * i)
+      else if (frequency === 'yearly') dueDate.setFullYear(dueDate.getFullYear() + i)
+      else dueDate.setMonth(dueDate.getMonth() + i)
     }
     const expected = i === numInstallments ? original - installmentAmt * (numInstallments - 1) : installmentAmt
 
