@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Archive, Pencil, X } from 'lucide-react'
+import { Plus, Search, Archive, Pencil, X, Trash2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -149,8 +149,12 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
   const [created, setCreated] = useState([]) // columns made from this window, before the list refreshes
   const [newColumn, setNewColumn] = useState(null) // { name, type } while the "new column" box is open
   const [creating, setCreating] = useState(false)
+  const [managing, setManaging] = useState(false) // editing the saved column list
+  const [overrides, setOverrides] = useState({}) // { [id]: { name?, removed? } } until the list refreshes
 
   const allColumns = [...columns, ...created.filter((c) => !columns.some((x) => x.id === c.id))]
+    .map((c) => (overrides[c.id]?.name ? { ...c, name: overrides[c.id].name } : c))
+    .filter((c) => !overrides[c.id]?.removed)
   const activeColumns = active.map((id) => allColumns.find((c) => c.id === id)).filter(Boolean)
   const availableColumns = allColumns.filter((c) => !active.includes(c.id))
   const [error, setError] = useState('')
@@ -170,6 +174,8 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
       setActive(existing.map(([k]) => k))
       setCreated([])
       setNewColumn(null)
+      setManaging(false)
+      setOverrides({})
       setError('')
     }
   }, [open, initial])
@@ -207,6 +213,30 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
     }
     onSaved?.()
     onClose()
+  }
+
+  async function renameColumn(column, next) {
+    const name = next.trim()
+    if (!name || name === column.name) return false
+    const { error: err } = await supabase.from('inventory_product_fields').update({ name }).eq('id', column.id)
+    if (err) {
+      showToast(`Couldn't rename: ${err.message.includes('duplicate') ? 'you already have a column with that name' : err.message}`)
+      return false
+    }
+    setOverrides((o) => ({ ...o, [column.id]: { ...o[column.id], name } }))
+    onColumnsChanged?.()
+    return true
+  }
+
+  async function removeColumn(column) {
+    const { error: err } = await supabase.from('inventory_product_fields').update({ archived_at: new Date().toISOString() }).eq('id', column.id)
+    if (err) {
+      showToast(`Couldn't remove column: ${err.message}`)
+      return
+    }
+    setOverrides((o) => ({ ...o, [column.id]: { ...o[column.id], removed: true } }))
+    setActive((a) => a.filter((id) => id !== column.id))
+    onColumnsChanged?.()
   }
 
   function pickDetail(value) {
@@ -330,6 +360,25 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
               <Button type="button" onClick={createColumn} loading={creating}>Add Column</Button>
             </div>
           </div>
+        ) : managing ? (
+          <div className="mb-4 rounded-lg border border-gray-200 p-3 dark:border-sage-800">
+            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Your saved columns</p>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              Type over a name to rename it, or use the trash icon to remove it. Removing a column hides it from every product; values already typed are kept.
+            </p>
+            {allColumns.length === 0 ? (
+              <p className="mb-3 text-sm text-gray-500">No saved columns.</p>
+            ) : (
+              <div className="mb-3 divide-y divide-gray-100 dark:divide-sage-800">
+                {allColumns.map((c) => (
+                  <SavedColumnRow key={c.id} column={c} onRename={renameColumn} onRemove={removeColumn} />
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button variant="outline" type="button" onClick={() => setManaging(false)}>Done</Button>
+            </div>
+          </div>
         ) : (
           <Field label="Extra details" hint="Only add what this product needs, like a price per case for softdrinks. Other products stay clean.">
             <Select value="" onChange={(e) => pickDetail(e.target.value)}>
@@ -339,6 +388,11 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
               ))}
               <option value={ADD_CUSTOM}>＋ Add Custom Column…</option>
             </Select>
+            {allColumns.length > 0 && (
+              <button type="button" onClick={() => setManaging(true)} className="mt-1.5 text-xs font-medium text-sage-600 hover:underline dark:text-sage-400">
+                Edit or remove saved columns
+              </button>
+            )}
           </Field>
         )}
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
@@ -355,5 +409,43 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
         </div>
       </form>
     </Modal>
+  )
+}
+
+function SavedColumnRow({ column, onRename, onRemove }) {
+  const [name, setName] = useState(column.name)
+  useEffect(() => setName(column.name), [column.name])
+
+  async function commit() {
+    const ok = await onRename(column, name)
+    if (!ok) setName(column.name)
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-2">
+      <div className="min-w-0 flex-1">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            }
+          }}
+          aria-label="Column name"
+        />
+        <p className="mt-0.5 text-xs text-gray-400">{COLUMN_TYPES[column.field_type]}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(column)}
+        title="Remove column"
+        className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
   )
 }
