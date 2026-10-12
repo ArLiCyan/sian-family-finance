@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Archive, Pencil } from 'lucide-react'
+import { Plus, Search, Archive, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -16,6 +16,8 @@ import { UNIT_OPTIONS } from './fieldTypes'
 export default function ProductsPanel({ system, canManage }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [columns, setColumns] = useState([])
+  const [columnsOpen, setColumnsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -24,12 +26,14 @@ export default function ProductsPanel({ system, canManage }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: prods }, { data: cats }] = await Promise.all([
+    const [{ data: prods }, { data: cats }, { data: cols }] = await Promise.all([
       supabase.from('inventory_products').select('*, inventory_categories(name)').eq('inventory_system_id', system.id).is('archived_at', null).order('sort_order'),
       supabase.from('inventory_categories').select('*').eq('inventory_system_id', system.id).order('sort_order'),
+      supabase.from('inventory_product_fields').select('*').eq('inventory_system_id', system.id).is('archived_at', null).order('sort_order').order('created_at'),
     ])
     setProducts(prods ?? [])
     setCategories(cats ?? [])
+    setColumns(cols ?? [])
     setLoading(false)
   }, [system.id])
 
@@ -59,6 +63,11 @@ export default function ProductsPanel({ system, canManage }) {
           ))}
         </Select>
         {canManage && (
+          <Button variant="outline" onClick={() => setColumnsOpen(true)}>
+            <SlidersHorizontal className="h-4 w-4" /> Columns
+          </Button>
+        )}
+        {canManage && (
           <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
             <Plus className="h-4 w-4" /> Add Product
           </Button>
@@ -80,13 +89,21 @@ export default function ProductsPanel({ system, canManage }) {
                     {p.inventory_categories?.name ?? 'Uncategorized'}{p.unit ? ` · ${p.unit}` : ''}
                     {p.low_stock_threshold != null ? ` · low stock below ${p.low_stock_threshold}` : ''}
                   </p>
+                  {columns.some((c) => hasValue(p.custom_values?.[c.id])) && (
+                    <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-gray-500 dark:text-gray-400">
+                      {columns.filter((c) => hasValue(p.custom_values?.[c.id])).map((c) => (
+                        <span key={c.id}>
+                          {c.name}: <span className="font-medium text-gray-700 dark:text-gray-300">{formatValue(c, p.custom_values[c.id])}</span>
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {(p.price != null || p.case_price != null) && (
-                    <div className="text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {p.price != null && <p><CurrencyDisplay amount={p.price} /> <span className="text-xs font-normal text-gray-400">each</span></p>}
-                      {p.case_price != null && <p><CurrencyDisplay amount={p.case_price} /> <span className="text-xs font-normal text-gray-400">per case</span></p>}
-                    </div>
+                  {p.price != null && (
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <CurrencyDisplay amount={p.price} /> <span className="text-xs font-normal text-gray-400">each</span>
+                    </p>
                   )}
                   {canManage && (
                     <button
@@ -108,18 +125,152 @@ export default function ProductsPanel({ system, canManage }) {
         onClose={() => setFormOpen(false)}
         system={system}
         categories={categories}
+        columns={columns}
         initial={editing}
         onSaved={load}
       />
+      <ProductColumnsModal open={columnsOpen} onClose={() => setColumnsOpen(false)} system={system} columns={columns} onChanged={load} />
     </div>
   )
 }
 
-function ProductFormModal({ open, onClose, system, categories, initial, onSaved }) {
+const COLUMN_TYPES = { text: 'Words (e.g. supplier name)', number: 'Number (e.g. pieces per case)', money: 'Price in pesos' }
+const hasValue = (v) => v !== undefined && v !== null && v !== ''
+function formatValue(column, value) {
+  if (column.field_type === 'money') return `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return String(value)
+}
+
+// Lets the store owner add her own extra columns to the product list (and rename or remove them).
+function ProductColumnsModal({ open, onClose, system, columns, onChanged }) {
+  const { profile } = useAuth()
+  const { showToast } = useToast()
+  const [name, setName] = useState('')
+  const [type, setType] = useState('money')
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+  const [names, setNames] = useState({})
+
+  useEffect(() => {
+    if (open) {
+      setName('')
+      setType('money')
+      setError('')
+      setNames(Object.fromEntries(columns.map((c) => [c.id, c.name])))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  async function addColumn(e) {
+    e.preventDefault()
+    if (!name.trim()) {
+      setError('Type a name for the new column.')
+      return
+    }
+    setAdding(true)
+    setError('')
+    const { data, error: err } = await supabase
+      .from('inventory_product_fields')
+      .insert({ inventory_system_id: system.id, name: name.trim(), field_type: type, sort_order: columns.length + 1, created_by: profile.id })
+      .select()
+      .single()
+    setAdding(false)
+    if (err) {
+      setError(err.message.includes('duplicate') ? 'You already have a column with that name.' : err.message)
+      return
+    }
+    setNames((n) => ({ ...n, [data.id]: data.name }))
+    setName('')
+    onChanged?.()
+  }
+
+  async function rename(column) {
+    const next = (names[column.id] ?? '').trim()
+    if (!next || next === column.name) {
+      setNames((n) => ({ ...n, [column.id]: column.name }))
+      return
+    }
+    const { error: err } = await supabase.from('inventory_product_fields').update({ name: next }).eq('id', column.id)
+    if (err) {
+      showToast(`Couldn't rename: ${err.message.includes('duplicate') ? 'you already have a column with that name' : err.message}`)
+      setNames((n) => ({ ...n, [column.id]: column.name }))
+      return
+    }
+    onChanged?.()
+  }
+
+  async function remove(column) {
+    const { error: err } = await supabase.from('inventory_product_fields').update({ archived_at: new Date().toISOString() }).eq('id', column.id)
+    if (err) {
+      showToast(`Couldn't remove column: ${err.message}`)
+      return
+    }
+    onChanged?.()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Product Columns" size="sm">
+      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+        Add your own columns to the product list, like a price per case or a supplier. Each product gets a box for it when you add or edit it.
+      </p>
+      {columns.length === 0 ? (
+        <p className="mb-4 rounded-lg bg-sage-50 p-3 text-sm text-gray-600 dark:bg-sage-800/50 dark:text-gray-300">No extra columns yet.</p>
+      ) : (
+        <div className="mb-5 divide-y divide-gray-100 dark:divide-sage-800">
+          {columns.map((c) => (
+            <div key={c.id} className="flex items-center gap-2 py-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  value={names[c.id] ?? c.name}
+                  onChange={(e) => setNames((n) => ({ ...n, [c.id]: e.target.value }))}
+                  onBlur={() => rename(c)}
+                  aria-label="Column name"
+                />
+                <p className="mt-0.5 text-xs text-gray-400">{COLUMN_TYPES[c.field_type]}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => remove(c)}
+                title="Remove column"
+                className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <form onSubmit={addColumn} className="rounded-lg border border-gray-200 p-3 dark:border-sage-800">
+        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Add a new column</p>
+        <Field label="Column name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pieces per case" />
+        </Field>
+        <Field label="What goes in it?">
+          <Select value={type} onChange={(e) => setType(e.target.value)}>
+            {Object.entries(COLUMN_TYPES).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </Select>
+        </Field>
+        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end">
+          <Button type="submit" loading={adding}>Add Column</Button>
+        </div>
+      </form>
+      <p className="mt-3 text-xs text-gray-400">Removing a column hides it. Anything already typed in it is kept.</p>
+      <div className="mt-4 flex justify-end">
+        <Button variant="outline" onClick={onClose}>Done</Button>
+      </div>
+    </Modal>
+  )
+}
+
+function ProductFormModal({ open, onClose, system, categories, columns, initial, onSaved }) {
   const { profile } = useAuth()
   const { showToast } = useToast()
   const isEdit = !!initial?.id
-  const [form, setForm] = useState({ name: '', category_id: '', unit: '', low_stock_threshold: '', price: '', case_price: '' })
+  const [form, setForm] = useState({ name: '', category_id: '', unit: '', low_stock_threshold: '', price: '' })
+  const [custom, setCustom] = useState({})
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -131,8 +282,8 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
         unit: initial?.unit ?? '',
         low_stock_threshold: initial?.low_stock_threshold ?? '',
         price: initial?.price ?? '',
-        case_price: initial?.case_price ?? '',
       })
+      setCustom(Object.fromEntries(Object.entries(initial?.custom_values ?? {}).map(([k, v]) => [k, String(v)])))
       setError('')
     }
   }, [open, initial])
@@ -150,7 +301,15 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
       unit: form.unit || null,
       low_stock_threshold: form.low_stock_threshold ? Math.round(Number(form.low_stock_threshold)) : null,
       price: form.price ? Number(form.price) : null,
-      case_price: form.case_price ? Number(form.case_price) : null,
+      custom_values: (() => {
+        const values = { ...(initial?.custom_values ?? {}) }
+        for (const c of columns) {
+          const raw = (custom[c.id] ?? '').toString().trim()
+          if (raw === '') delete values[c.id]
+          else values[c.id] = c.field_type === 'text' ? raw : Number(raw)
+        }
+        return values
+      })(),
     }
     const { error: err } = isEdit
       ? await supabase.from('inventory_products').update(payload).eq('id', initial.id)
@@ -202,9 +361,17 @@ function ProductFormModal({ open, onClose, system, categories, initial, onSaved 
         <Field label="Price per Piece (₱)" hint="Optional reference price — for display only, doesn't affect any calculation.">
           <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
         </Field>
-        <Field label="Price per Case (₱)" hint="Optional. What one whole case costs, for example a case of softdrinks.">
-          <Input type="number" min="0" step="0.01" value={form.case_price} onChange={(e) => setForm((f) => ({ ...f, case_price: e.target.value }))} />
-        </Field>
+        {columns.map((c) => (
+          <Field key={c.id} label={`${c.name}${c.field_type === 'money' ? ' (₱)' : ''}`}>
+            <Input
+              type={c.field_type === 'text' ? 'text' : 'number'}
+              min={c.field_type === 'text' ? undefined : '0'}
+              step={c.field_type === 'money' ? '0.01' : c.field_type === 'number' ? 'any' : undefined}
+              value={custom[c.id] ?? ''}
+              onChange={(e) => setCustom((v) => ({ ...v, [c.id]: e.target.value }))}
+            />
+          </Field>
+        ))}
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-between gap-2">
           {isEdit ? (
