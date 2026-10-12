@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Archive, Pencil, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { Plus, Search, Archive, Pencil, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../../contexts/ToastContext'
@@ -128,6 +128,7 @@ export default function ProductsPanel({ system, canManage }) {
         columns={columns}
         initial={editing}
         onSaved={load}
+        onColumnsChanged={load}
       />
       <ProductColumnsModal open={columnsOpen} onClose={() => setColumnsOpen(false)} system={system} columns={columns} onChanged={load} />
     </div>
@@ -211,7 +212,7 @@ function ProductColumnsModal({ open, onClose, system, columns, onChanged }) {
   return (
     <Modal open={open} onClose={onClose} title="Product Columns" size="sm">
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        Add your own columns to the product list, like a price per case or a supplier. Each product gets a box for it when you add or edit it.
+        These are the extra details you have saved, like a price per case or a supplier. They are not added to every product: you pick them for a product when you add or edit it.
       </p>
       {columns.length === 0 ? (
         <p className="mb-4 rounded-lg bg-sage-50 p-3 text-sm text-gray-600 dark:bg-sage-800/50 dark:text-gray-300">No extra columns yet.</p>
@@ -265,12 +266,24 @@ function ProductColumnsModal({ open, onClose, system, columns, onChanged }) {
   )
 }
 
-function ProductFormModal({ open, onClose, system, categories, columns, initial, onSaved }) {
+const ADD_CUSTOM = '__new__'
+
+// Extra details are per product: a product only shows the details you added to it.
+// Pick one from the list, or choose the last option to create a brand-new column.
+function ProductFormModal({ open, onClose, system, categories, columns, initial, onSaved, onColumnsChanged }) {
   const { profile } = useAuth()
   const { showToast } = useToast()
   const isEdit = !!initial?.id
   const [form, setForm] = useState({ name: '', category_id: '', unit: '', low_stock_threshold: '', price: '' })
   const [custom, setCustom] = useState({})
+  const [active, setActive] = useState([]) // ids of the extra details this product uses
+  const [created, setCreated] = useState([]) // columns made from this window, before the list refreshes
+  const [newColumn, setNewColumn] = useState(null) // { name, type } while the "new column" box is open
+  const [creating, setCreating] = useState(false)
+
+  const allColumns = [...columns, ...created.filter((c) => !columns.some((x) => x.id === c.id))]
+  const activeColumns = active.map((id) => allColumns.find((c) => c.id === id)).filter(Boolean)
+  const availableColumns = allColumns.filter((c) => !active.includes(c.id))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -283,7 +296,11 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
         low_stock_threshold: initial?.low_stock_threshold ?? '',
         price: initial?.price ?? '',
       })
-      setCustom(Object.fromEntries(Object.entries(initial?.custom_values ?? {}).map(([k, v]) => [k, String(v)])))
+      const existing = Object.entries(initial?.custom_values ?? {}).filter(([, v]) => v !== null && v !== '')
+      setCustom(Object.fromEntries(existing.map(([k, v]) => [k, String(v)])))
+      setActive(existing.map(([k]) => k))
+      setCreated([])
+      setNewColumn(null)
       setError('')
     }
   }, [open, initial])
@@ -303,8 +320,8 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
       price: form.price ? Number(form.price) : null,
       custom_values: (() => {
         const values = { ...(initial?.custom_values ?? {}) }
-        for (const c of columns) {
-          const raw = (custom[c.id] ?? '').toString().trim()
+        for (const c of allColumns) {
+          const raw = active.includes(c.id) ? (custom[c.id] ?? '').toString().trim() : ''
           if (raw === '') delete values[c.id]
           else values[c.id] = c.field_type === 'text' ? raw : Number(raw)
         }
@@ -321,6 +338,38 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
     }
     onSaved?.()
     onClose()
+  }
+
+  function pickDetail(value) {
+    if (value === ADD_CUSTOM) {
+      setNewColumn({ name: '', type: 'money' })
+    } else if (value) {
+      setActive((a) => [...a, value])
+    }
+  }
+
+  async function createColumn() {
+    const name = newColumn?.name.trim()
+    if (!name) {
+      setError('Type a name for the new column.')
+      return
+    }
+    setCreating(true)
+    setError('')
+    const { data, error: err } = await supabase
+      .from('inventory_product_fields')
+      .insert({ inventory_system_id: system.id, name, field_type: newColumn.type, sort_order: allColumns.length + 1, created_by: profile.id })
+      .select()
+      .single()
+    setCreating(false)
+    if (err) {
+      setError(err.message.includes('duplicate') ? 'You already have a column with that name. Pick it from the list instead.' : err.message)
+      return
+    }
+    setCreated((c) => [...c, data])
+    setActive((a) => [...a, data.id])
+    setNewColumn(null)
+    onColumnsChanged?.()
   }
 
   async function handleArchive() {
@@ -361,17 +410,68 @@ function ProductFormModal({ open, onClose, system, categories, columns, initial,
         <Field label="Price per Piece (₱)" hint="Optional reference price — for display only, doesn't affect any calculation.">
           <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
         </Field>
-        {columns.map((c) => (
+        {activeColumns.map((c) => (
           <Field key={c.id} label={`${c.name}${c.field_type === 'money' ? ' (₱)' : ''}`}>
-            <Input
-              type={c.field_type === 'text' ? 'text' : 'number'}
-              min={c.field_type === 'text' ? undefined : '0'}
-              step={c.field_type === 'money' ? '0.01' : c.field_type === 'number' ? 'any' : undefined}
-              value={custom[c.id] ?? ''}
-              onChange={(e) => setCustom((v) => ({ ...v, [c.id]: e.target.value }))}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                type={c.field_type === 'text' ? 'text' : 'number'}
+                min={c.field_type === 'text' ? undefined : '0'}
+                step={c.field_type === 'money' ? '0.01' : c.field_type === 'number' ? 'any' : undefined}
+                value={custom[c.id] ?? ''}
+                onChange={(e) => setCustom((v) => ({ ...v, [c.id]: e.target.value }))}
+              />
+              <button
+                type="button"
+                title="Remove this detail from the product"
+                onClick={() => setActive((a) => a.filter((id) => id !== c.id))}
+                className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </Field>
         ))}
+
+        {newColumn ? (
+          <div className="mb-4 rounded-lg border border-gray-200 p-3 dark:border-sage-800">
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">New column for this product</p>
+            <Field label="Column name">
+              <Input
+                value={newColumn.name}
+                onChange={(e) => setNewColumn((n) => ({ ...n, name: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    createColumn()
+                  }
+                }}
+                placeholder="e.g. Pieces per case"
+                autoFocus
+              />
+            </Field>
+            <Field label="What goes in it?">
+              <Select value={newColumn.type} onChange={(e) => setNewColumn((n) => ({ ...n, type: e.target.value }))}>
+                {Object.entries(COLUMN_TYPES).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" type="button" onClick={() => setNewColumn(null)}>Cancel</Button>
+              <Button type="button" onClick={createColumn} loading={creating}>Add Column</Button>
+            </div>
+          </div>
+        ) : (
+          <Field label="Extra details" hint="Only add what this product needs, like a price per case for softdrinks. Other products stay clean.">
+            <Select value="" onChange={(e) => pickDetail(e.target.value)}>
+              <option value="">Add a detail…</option>
+              {availableColumns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+              <option value={ADD_CUSTOM}>＋ Add Custom Column…</option>
+            </Select>
+          </Field>
+        )}
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <div className="flex justify-between gap-2">
           {isEdit ? (
